@@ -7,6 +7,89 @@ bitácora.
 
 ---
 
+# Entrada 4 — Infraestructura: migración y centralización a cuentas de marca
+
+Fecha: 2026-07-18. Fase: ninguna (infraestructura, ortogonal a las Fases
+0/1/2/3). Rama: develop.
+
+Entrada puramente de infraestructura (cuentas y hosting). NO altera ninguna
+fase ni el estado de ninguna compuerta.
+
+## Qué se hizo (verificado)
+- Cuentas de marca creadas bajo el correo `softensordev@gmail.com` (Gmail
+  gratuito como identidad de servicios; NO es aún el correo de contacto
+  público — ese sigue pendiente, ver abajo):
+  - GitHub: cuenta `softensordev`.
+  - Vercel: cuenta `softensordev`, plan Hobby.
+- Repositorio migrado de `DavidOlmos03/softensor` a `softensordev/softensor`
+  por clonación espejo (`git clone --mirror` + `git push --mirror`). Se
+  migraron todas las ramas (main, develop, luis, fase0/contacto-directo,
+  fase1/design-brief) y el historial completo de commits. NO se migraron
+  los objetos de Pull Request de GitHub (`refs/pull/*`): los PRs históricos
+  (incluido el #3 del fix CVE) quedan referenciados por número en los
+  mensajes de commit, no como objetos navegables.
+- Proyecto nuevo en la cuenta Vercel de marca importando
+  `softensordev/softensor`. Deploy de main verde y preview de develop verde:
+  pipeline completo validado en la infraestructura de marca (GitHub de marca
+  → Vercel de marca).
+
+## Corrección explícita de la Entrada 2
+El plan de la Entrada 2 ("David transferirá el proyecto desde su cuenta
+personal" vía Transfer Project de Vercel) NO se ejecutó: David descartó la
+transferencia. En su lugar se hizo la migración por clonación descrita
+arriba. Por la regla "manda la entrada más reciente", esta entrada anula ese
+plan de transferencia. El pendiente de Entrada 2 "configurar previews sobre
+develop en la cuenta nueva" queda RESUELTO (previews ya funcionan en la
+cuenta de marca).
+
+## Decisiones de infraestructura tomadas en esta migración
+- Correo de marca: `softensordev@gmail.com` es la identidad para login de
+  servicios (Vercel, GitHub). El correo de contacto público
+  (`info@softensor.com` o el que se defina) sigue PENDIENTE y se resolverá
+  cuando se centralice Hostinger. El placeholder `CONTACT_EMAIL` en el
+  código sigue sin correo real válido: sigue siendo bloqueante para el
+  cierre total de Fase 0 (no se ha tocado).
+- Hostinger: se decidió NO migrar la cuenta de Hostinger por ahora; se
+  centralizará más adelante (candidato: en la renovación del dominio, para
+  no operar bajo presión de fecha). Luis no tiene acceso a Hostinger: las
+  configuraciones de DNS las ejecuta David.
+- DNS del dominio: se detectó configuración de nameservers inválida (mezcla
+  de 2 de Hostinger `dns-parking` + 2 de Vercel `vercel-dns`, condición de
+  carrera que probablemente explica la desincronización histórica del
+  dominio mencionada en Entrada 0). NO CORREGIDA AÚN. El dominio
+  `softensor.com` sigue apuntando al proyecto Vercel viejo de la cuenta de
+  David y NO está conectado a la cuenta de marca. Bloqueante: requiere que
+  David haga Remove del dominio en su proyecto Vercel, paso que a la fecha
+  de esta entrada no se ha ejecutado. Método acordado cuando se destrabe
+  (preferencia de David): delegación DNS completa a nameservers de Vercel —
+  David hace Remove, Luis hace "Move to team", Vercel asigna los nameservers
+  definitivos y David los configura en Hostinger. Camino alternativo
+  evaluado y descartado por falta de acceso: registros A + TXT de
+  verificación con la zona DNS en Hostinger (recomendación del arquitecto
+  por mantenibilidad y correo futuro, pero requiere acceso a Hostinger que
+  Luis no tiene).
+- Acceso al repo de marca: la cuenta personal de GitHub de Luis se mantiene
+  como colaborador con permisos de escritura del repo `softensordev/softensor`,
+  para continuidad de su flujo de trabajo y para que el Project de claude.ai
+  (que lee de su cuenta personal) siga funcionando.
+- Data Preferences de Vercel: el toggle "Improve models with this project's
+  data" (compartía código con proveedores de IA para entrenamiento) fue
+  desactivado a nivel de proyecto y de team. Hecho.
+
+## Pendientes (se agregan a la lista global)
+- Conectar `softensor.com` a la cuenta Vercel de marca (bloqueado por el
+  Remove de David). Consecuencia mientras tanto: lo que se despliegue a main
+  desde la cuenta de marca NO llega al dominio público; producción real
+  sigue servida por el proyecto Vercel de David.
+- Correo de contacto público real (sigue bloqueando el cierre total de
+  Fase 0).
+
+## Qué NO cambia
+Ninguna fase se altera. Fase 0 sigue con su compuerta pendiente por el
+correo real. Fase 1 sigue cerrada (Entrada 3). Fase 2 aún no ha comenzado.
+El flujo de ramas (develop como integración, PR semanal a main) sigue igual,
+solo que ahora sobre el repo y el Vercel de marca.
+
 # Entrada 3 — Fase 1: design brief (cierre)
 
 Fecha: 2026-07-17. Fase: 1 — design brief. Rama: fase1/design-brief.
