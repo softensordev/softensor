@@ -7,6 +7,33 @@ bitácora.
 
 ---
 
+# Entrada 6 — Limpieza: documentación obsoleta de CONTACT_EMAIL
+
+Fecha: 2026-07-23. Fase: ninguna (limpieza de documentación).
+Rama: docs/limpieza-contact-email.
+
+## Qué se hizo
+Eliminadas las referencias a CONTACT_EMAIL como variable de entorno en
+.env.example y docs-claude/DOCKER.md. Ambas mostraban además el
+placeholder obsoleto info@softensor.com, ya reemplazado en código por la
+Entrada 5.
+
+## Por qué (decisión)
+El código no lee CONTACT_EMAIL de process.env: es un literal en la
+constante de config/contactChannels.tsx. La documentación describía un
+mecanismo de configuración inexistente — trampa para quien la siguiera.
+Se optó por ELIMINAR en vez de alinear, y explícitamente por NO
+implementar lectura desde entorno: un correo de contacto público no es
+secreto, no varía por entorno, y moverlo a env agregaría un modo de fallo
+(variable ausente en Vercel → correo vacío en producción) sin beneficio.
+El literal en constante única se mantiene como decisión de diseño.
+
+## Estado de compuertas
+Ninguna se altera. Fase 0 sigue CERRADA (Entrada 5). Fase 1 CERRADA
+(Entrada 3). Fase 2 aún no comienza. Esta entrada es housekeeping.
+
+---
+
 # Entrada 5 — Fase 0: cierre de compuerta (correo de contacto real)
 
 Fecha: 2026-07-23. Fase: 0 — infraestructura de conversión.
