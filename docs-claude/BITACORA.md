@@ -7,6 +7,54 @@ bitácora.
 
 ---
 
+# Entrada 5 — Fase 0: cierre de compuerta (correo de contacto real)
+
+Fecha: 2026-07-23. Fase: 0 — infraestructura de conversión.
+Rama: fase0/contact-email.
+
+## Qué se hizo
+- Reemplazado el placeholder `info@softensor.com` por el correo real y
+  funcional `softensordev@gmail.com` en la constante CONTACT_EMAIL de
+  config/contactChannels.tsx. El canal de contacto directo (mailto)
+  queda operativo end-to-end por primera vez.
+- Verificado: tsc --noEmit y build en verde; textos visibles siguen
+  pasando por i18n ES/EN; el correo vive en config, no en los JSON de
+  locales.
+
+## Decisión y su carácter transitorio
+`softensordev@gmail.com` es el mismo correo de identidad de servicios
+creado en la Entrada 4 (login de GitHub y Vercel de marca). Se adopta
+TAMBIÉN como correo de contacto público para desbloquear la compuerta de
+Fase 0, que llevaba abierta desde la Entrada 1 por falta de un buzón real.
+
+Limitación declarada y aceptada: un Gmail gratuito como canal de contacto
+público resta credibilidad frente a un correo del dominio propio
+(`info@softensor.com` o similar) ante decisores de pyme — precisamente el
+público al que la landing debe proyectar solvencia. Se acepta como
+solución transitoria porque un buzón real que funciona es estrictamente
+mejor que un placeholder que rebota, y porque el costo de migrar después
+es trivial: el correo está centralizado en una única constante.
+
+PENDIENTE derivado: migrar a correo del dominio cuando se centralice
+Hostinger (ver Entrada 4: la centralización se difirió a la renovación
+del dominio). Al hacerlo, el cambio es de una sola línea en
+config/contactChannels.tsx.
+
+## Estado de compuerta de Fase 0
+CERRADA. El bloqueante único que quedaba (correo real en CONTACT_EMAIL,
+registrado en Entradas 1, 2 y 4) queda resuelto. Fase 0 completa.
+
+## Qué NO cambia
+- Fase 1 sigue cerrada (Entrada 3). Fase 2 aún no comienza.
+- El pendiente de infraestructura de la Entrada 4 sigue abierto:
+  `softensor.com` NO está conectado a la cuenta Vercel de marca (bloqueado
+  por el Remove que debe hacer David). Consecuencia vigente: este cambio,
+  al llegar a main, NO se refleja en el dominio público hasta que ese
+  bloqueo se destrabe. La producción real la sigue sirviendo el proyecto
+  Vercel de David.
+
+---
+
 # Entrada 4 — Infraestructura: migración y centralización a cuentas de marca
 
 Fecha: 2026-07-18. Fase: ninguna (infraestructura, ortogonal a las Fases

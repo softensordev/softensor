@@ -1,8 +1,10 @@
 import React from 'react';
 import type { TFunction } from 'i18next';
 
-// PLACEHOLDER: cambiar por el correo real de la marca cuando exista.
-export const CONTACT_EMAIL = 'info@softensor.com';
+// Correo de contacto público. Transitorio: Gmail de identidad de servicios
+// (ver BITACORA Entrada 5). Migrar a correo del dominio propio al centralizar
+// Hostinger — cambio de una sola línea aquí.
+export const CONTACT_EMAIL = 'softensordev@gmail.com';
 
 export interface ContactChannel {
   id: string; // 'email' | futuros: 'whatsapp', 'linkedin'...
