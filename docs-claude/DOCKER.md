@@ -143,7 +143,7 @@ NGINX_PORT=80
 # Configurar según necesidad
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-CONTACT_EMAIL=info@softensor.com
+# El correo de contacto público se configura en config/contactChannels.tsx, no por entorno.
 ```
 
 ---
