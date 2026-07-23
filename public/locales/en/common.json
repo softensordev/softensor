@@ -59,9 +59,14 @@
   "contact": {
     "title": "Contact Us",
     "subtitle": "Let's talk about your project",
-    "email": "Email",
-    "message": "Message",
-    "send": "Send"
+    "channels": {
+      "email": {
+        "label": "Email us",
+        "description": "Tell us what your business needs and we'll get back to you with a clear, no-obligation proposal.",
+        "aria": "Send an email to Softensor (opens your email app)",
+        "subject": "Software development inquiry"
+      }
+    }
   },
   "footer": {
     "rights": "All rights reserved",

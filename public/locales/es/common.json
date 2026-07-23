@@ -59,9 +59,14 @@
   "contact": {
     "title": "Contáctanos",
     "subtitle": "Hablemos de tu proyecto",
-    "email": "Correo electrónico",
-    "message": "Mensaje",
-    "send": "Enviar"
+    "channels": {
+      "email": {
+        "label": "Escríbenos por correo",
+        "description": "Cuéntanos qué necesita tu negocio y te respondemos con una propuesta clara, sin compromiso.",
+        "aria": "Enviar correo a Softensor (abre tu aplicación de correo)",
+        "subject": "Consulta sobre desarrollo de software"
+      }
+    }
   },
   "footer": {
     "rights": "Todos los derechos reservados",
