@@ -23,6 +23,82 @@
   --shadow-neon-purple: 0 0 20px rgba(131, 56, 236, 0.5);
   --shadow-neon-blue: 0 0 20px rgba(58, 134, 255, 0.5);
   --shadow-neon-cyan: 0 0 20px rgba(6, 255, 240, 0.5);
+
+  /* ===== DIRECCIÓN SEÑAL — Fase 2 =====
+     Bloque ADITIVO. NO elimina ni renombra tokens Neon Sunset (arriba):
+     88 referencias en 12 archivos aún dependen de ellos. La paleta Neon
+     se retira en un commit de limpieza al cerrar Fase 3. */
+
+  /* — Superficies — */
+  --color-bg:              #07090A;
+  --color-surface:         #0E1113;
+  --color-surface-raised:  #14181A;
+  --color-border:          #FFFFFF14;   /* 8%  */
+  --color-border-strong:   #FFFFFF24;   /* 14% */
+
+  /* — Texto (AA verificado) — */
+  --color-text:            #ECEEEE;
+  --color-text-muted:      #9BA1A2;
+  --color-text-subtle:     #777D7F;
+
+  /* — Acento FUNCIONAL: señal teal. FIJO, nunca rota — */
+  --color-accent:          #00C2A8;
+  --color-accent-hover:    #26D6BC;
+  --color-accent-press:    #00A08B;
+  --color-accent-contrast: #0A0A0B;
+  --color-accent-tint:     #00C2A824;
+  --color-accent-glow:     #00C2A840;
+  --color-focus:           #26D6BC;
+
+  /* — Atmósfera DECORATIVA: cross-fade teal→cian→azul (solo paths + halo global) — */
+  --color-atmo-1:          #00C2A8;
+  --color-atmo-2:          #3AA8C4;
+  --color-atmo-3:          #4C9AFF;
+
+  /* — Tipografía — */
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Roboto Mono", monospace;
+
+  /* — Escala tipográfica — */
+  --text-eyebrow: .75rem;   --text-eyebrow--line-height: 1.4;  --text-eyebrow--letter-spacing: .12em;
+  --text-caption: .8125rem; --text-caption--line-height: 1.5;
+  --text-sm:      .875rem;  --text-sm--line-height:      1.6;
+  --text-base:    1rem;     --text-base--line-height:    1.65;
+  --text-lg:      1.125rem; --text-lg--line-height:      1.55;
+  --text-xl:      1.375rem; --text-xl--line-height:      1.3;
+  --text-2xl:     1.75rem;  --text-2xl--line-height:     1.2;
+  --text-3xl:     2.25rem;  --text-3xl--line-height:     1.12; --text-3xl--letter-spacing: -.02em;
+  --text-display: 3.25rem;  --text-display--line-height: 1.04; --text-display--letter-spacing: -.03em;
+  /* Hero responsivo: text-[clamp(2rem,7vw,3.25rem)] */
+
+  /* — Espaciado — */
+  --spacing: .25rem;
+
+  /* — Radios — */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+
+  /* — Easings — */
+  --ease-standard: cubic-bezier(.4,0,.2,1);
+  --ease-out:      cubic-bezier(.22,1,.36,1);
+  --ease-signal:   cubic-bezier(.16,1,.3,1);
+
+  /* — Glows (teal fijo) — */
+  --shadow-glow-sm: 0 0 16px #00C2A840;
+  --shadow-glow-md: 0 0 32px #00C2A840;
+  /* ===== FIN DIRECCIÓN SEÑAL ===== */
+}
+
+/* ===== DIRECCIÓN SEÑAL — duraciones (fuera del @theme) ===== */
+:root {
+  --dur-fast:   120ms;
+  --dur-base:   200ms;
+  --dur-slow:   400ms;
+  --dur-slower: 700ms;
+  --dur-atmo:   24s;
 }
 
 @keyframes glow {
@@ -96,5 +172,33 @@ body {
 
 .bg-sunset-gradient {
   background-image: linear-gradient(180deg, #1A0B2E 0%, #16213E 50%, #2D1B69 100%);
+}
+
+/* ===== ATMÓSFERA — cross-fade de 3 capas apiladas =====
+   Cada capa: gradiente/stroke ESTÁTICO en --color-atmo-1/2/3.
+   Solo se anima opacity → GPU puro. Sin @property, sin rAF.
+   Las tres suman opacidad 1 en todo el ciclo (verificado). */
+@keyframes atmo-a { 0%,100% { opacity: 1 } 33% { opacity: 0 } 66% { opacity: 0 } }
+@keyframes atmo-b { 0% { opacity: 0 } 33% { opacity: 1 } 66% { opacity: 0 } 100% { opacity: 0 } }
+@keyframes atmo-c { 0% { opacity: 0 } 33% { opacity: 0 } 66% { opacity: 1 } 100% { opacity: 0 } }
+.atmo-1 { animation: atmo-a var(--dur-atmo) linear infinite }
+.atmo-2 { animation: atmo-b var(--dur-atmo) linear infinite }
+.atmo-3 { animation: atmo-c var(--dur-atmo) linear infinite }
+
+/* ===== FOCO — siempre :focus-visible, nunca :focus ===== */
+:where(a, button, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* ===== REDUCED-MOTION — dirigido por efecto, estado final explícito ===== */
+@media (prefers-reduced-motion: reduce) {
+  .atmo-1 { animation: none; opacity: 1 }
+  .atmo-2, .atmo-3 { animation: none; opacity: 0 }
+  .bg-paths { animation: none; transform: none }
+  .led-dot  { animation: none; opacity: 1 }
+  [data-reveal], [data-expand] { transition-duration: 0ms !important; animation: none !important }
+  /* Spotlight (global + tarjeta) y efectos de avatares: NO montados.
+     Guard en JS vía matchMedia, no CSS. */
 }
 

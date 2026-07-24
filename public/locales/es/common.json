@@ -34,11 +34,22 @@
   "team": {
     "title": "Nuestro Equipo",
     "subtitle": "Expertos en desarrollo de software",
+    "founderRole": "Cofundador · Full-stack",
     "roles": {
       "physicist": "Físico",
       "mathematician": "Matemático",
       "engineer": "Ingeniero de Sistemas",
       "statistician": "Estadístico"
+    },
+    "members": {
+      "luis": {
+        "tagline": "Frontend, producto y experiencia. Interfaces claras que la gente sabe usar.",
+        "bio": "Matemático de formación. Diseño y construyo la capa que el usuario toca: interfaces claras, rápidas y sin fricción, pensadas para que quien las usa entienda qué hacer sin manual. Del boceto al producto que convierte."
+      },
+      "david": {
+        "tagline": "Backend. Del prototipo al sistema en producción.",
+        "bio": "Físico de formación. Levanto la infraestructura y la lógica que sostiene el producto: APIs, datos y despliegue. Llevo lo que empieza como prototipo hasta un sistema estable que corre en producción y aguanta clientes reales."
+      }
     }
   },
   "values": {
@@ -54,6 +65,28 @@
     "innovation": {
       "title": "Innovación Continua",
       "description": "Aplicamos las últimas tecnologías y metodologías para entregar soluciones de vanguardia."
+    }
+  },
+  "projects": {
+    "sectors": {
+      "retail": "Retail",
+      "salud": "Salud",
+      "logistica": "Logística"
+    },
+    "retail-inventario": {
+      "title": "Inventario en tiempo real para retail",
+      "summary": "Reemplazamos hojas de cálculo por un panel de inventario en tiempo real, con alertas de stock bajo y sincronización entre puntos de venta.",
+      "metric": { "label": "Quiebres de stock" }
+    },
+    "salud-agenda": {
+      "title": "Agenda clínica con recordatorios",
+      "summary": "Sistema de citas para un consultorio: agenda en línea, confirmaciones automáticas y recordatorios que reducen las inasistencias.",
+      "metric": { "label": "Inasistencias" }
+    },
+    "logistica-despachos": {
+      "title": "Portal de despachos para logística",
+      "summary": "Portal de seguimiento de despachos con estados en vivo, para que cliente y operador vean el mismo estado de cada envío.",
+      "metric": { "label": "Consultas resueltas" }
     }
   },
   "contact": {

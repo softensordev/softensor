@@ -7,6 +7,90 @@ bitácora.
 
 ---
 
+# Entrada 7 — Fase 2: diseño (cierre de compuerta)
+
+Fecha: 2026-07-24. Fase: 2 — diseño. Rama: fase2/diseno.
+Estado de compuerta: **CERRADA**.
+
+## Dirección elegida
+**Señal** (dark-tech sobre grid suizo), de tres exploraciones evaluadas en
+Fase 2: **Rejilla / Señal / Halo**. Acento teal `#00C2A8` como señalizador
+funcional fijo; atmósfera (teal→cian→azul) ciclando solo en decorativo.
+
+## Decisiones tomadas
+- **Acento ámbar descartado** por proximidad a la identidad de Anthropic →
+  se adopta **teal `#00C2A8`**.
+- **Acento funcional fijo + atmósfera decorativa ciclando**: separación
+  deliberada. El acento marca "esto es acción" y su reconocimiento sostenido
+  sostiene la conversión; si rotara, se degradaría el señalizador. La
+  atmósfera respira solo en paths de fondo y halo global.
+- **Spotlight extendido a dos niveles** (global ~600px, tarjeta ~300px),
+  diferenciados por **escala y nitidez, no por color**. El halo es un div con
+  gradiente estático movido por `transform`; nunca se repinta el viewport.
+- **Confianza resuelta como híbrido**: card colapsada → expansión apilada
+  (`grid-template-rows` 0fr→1fr, tarjetas traseras por `translateY+scale`) con
+  **foto opcional** (la landing sale a producción sin sesión de fotos).
+- **Copy corregido** de "ingenieros" a **matemático + físico full-stack**, por
+  precisión factual y por fricción de confianza en el mercado colombiano.
+- **Avatares diferenciados por dispositivo**: seguimiento de cursor en
+  desktop, **mirada errante por timer (`setTimeout` encadenado)** en táctil,
+  más reacción al tap en ambos. Motivo: en móvil el avatar quedaba reducido a
+  un parpadeo aislado, que **lee como fallo antes que como vida**. El rango
+  (`clamp ±2.5`) y el mecanismo (`motionValue` + spring sobre `transform`) son
+  idénticos; solo cambia la **fuente del valor**, así que no añade superficie
+  de implementación.
+
+## Decisiones diferidas
+- **Demos interactivas de producto** → fase posterior. Enfoque preferido:
+  secuencia de imágenes con drag/scroll; alternativa: video en loop. Ambas
+  evitan runtime 3D, así que la decisión de Fase 1 (cero 3D) queda intacta.
+- **Pantalla de carga descartada** para la landing (SSG: no hay espera real
+  que cubrir y competiría con el LCP). Reconsiderable como loader dentro de la
+  sección interactiva cuando exista una espera genuina.
+- **Dark/light mode diferido**: duplicaría la superficie de verificación de
+  contraste y exigiría rediseñar glows y spotlight sobre fondo claro.
+
+## Nota técnica
+Tokens de la dirección Señal añadidos de forma **aditiva** a
+`styles/globals.css` (bloque delimitado por comentarios). La paleta **Neon
+Sunset sigue viva**: 88 referencias en 12 archivos de `components/` y `pages/`
+aún dependen de ella. Se retira en un **commit de limpieza al cerrar Fase 3**,
+cuando ningún componente la use. Ver `docs-claude/DESIGN-SPEC.md` (insumo de
+Fase 3) para el contrato completo.
+
+Corrección aplicada dentro de esta fase: **todos los campos de texto visible
+en `config/team.ts` y `config/projects.ts` van por i18n**, ninguno queda como
+literal (habrían quedado en español dentro de la versión EN). `discipline`
+**reutiliza el bloque `team.roles` preexistente** en lugar de duplicar
+traducciones; `role` pasa a la clave compartida `team.founderRole`; `sector`
+usa el nuevo bloque `projects.sectors`. `year` y `metric.value` se mantienen
+literales (números/símbolos, no prosa traducible).
+
+## Qué se hizo (esta rama)
+- `styles/globals.css`: bloque aditivo de tokens Señal (superficies, texto,
+  acento fijo, atmósfera, tipografía, escala, radios, easings, glows),
+  duraciones en `:root`, mecanismo de atmósfera (cross-fade opacity), foco
+  `:focus-visible` y `prefers-reduced-motion`.
+- `config/team.ts` y `config/projects.ts`: nuevos, mismo patrón array-de-
+  configuración que `contactChannels.tsx`; `tagline`/`bio`/`title`/`summary`
+  como claves i18n, no literales.
+- Traducciones ES/EN en `public/locales/{es,en}/common.json`
+  (`team.members.*`, `projects.*`).
+- `docs-claude/DESIGN-SPEC.md`: especificación técnica que consume Fase 3.
+- Esta entrada de bitácora.
+
+## Pendientes (se agregan a la lista global)
+- Implementación de componentes (**Fase 3**).
+- Curaduría de proyectos reales con David (los casos en `projects.ts` son
+  placeholder).
+- Sesión de fotos opcional (interface `photo?` ya declarada).
+- Animación de capas del avatar más allá de los ojos (cejas, boca, pelo),
+  pendiente del asset ilustrado final. La estructura SVG ya las declara como
+  grupos separados, así que añadirlas después no requiere rediseñar el asset.
+- `softensor.com` aún sin conectar a la cuenta Vercel de marca (Entrada 4/5).
+
+---
+
 # Entrada 6 — Limpieza: documentación obsoleta de CONTACT_EMAIL
 
 Fecha: 2026-07-23. Fase: ninguna (limpieza de documentación).
