@@ -34,11 +34,22 @@
   "team": {
     "title": "Our Team",
     "subtitle": "Software development experts",
+    "founderRole": "Co-founder · Full-stack",
     "roles": {
       "physicist": "Physicist",
       "mathematician": "Mathematician",
       "engineer": "Systems Engineer",
       "statistician": "Statistician"
+    },
+    "members": {
+      "luis": {
+        "tagline": "Frontend, product and experience. Clear interfaces people know how to use.",
+        "bio": "Mathematician by training. I design and build the layer users touch: clear, fast, friction-free interfaces meant to be understood without a manual. From sketch to a product that converts."
+      },
+      "david": {
+        "tagline": "Backend. From prototype to production system.",
+        "bio": "Physicist by training. I build the infrastructure and logic behind the product: APIs, data and deployment. I take what starts as a prototype all the way to a stable system running in production with real customers."
+      }
     }
   },
   "values": {
@@ -54,6 +65,28 @@
     "innovation": {
       "title": "Continuous Innovation",
       "description": "We apply the latest technologies and methodologies to deliver cutting-edge solutions."
+    }
+  },
+  "projects": {
+    "sectors": {
+      "retail": "Retail",
+      "salud": "Healthcare",
+      "logistica": "Logistics"
+    },
+    "retail-inventario": {
+      "title": "Real-time inventory for retail",
+      "summary": "We replaced spreadsheets with a real-time inventory dashboard, with low-stock alerts and sync across points of sale.",
+      "metric": { "label": "Stockouts" }
+    },
+    "salud-agenda": {
+      "title": "Clinic scheduling with reminders",
+      "summary": "A booking system for a medical practice: online scheduling, automatic confirmations and reminders that cut no-shows.",
+      "metric": { "label": "No-shows" }
+    },
+    "logistica-despachos": {
+      "title": "Dispatch portal for logistics",
+      "summary": "A shipment-tracking portal with live statuses, so customer and operator see the same state for every delivery.",
+      "metric": { "label": "Queries resolved" }
     }
   },
   "contact": {
