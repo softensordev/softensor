@@ -7,6 +7,102 @@ bitácora.
 
 ---
 
+# Entrada 9 — Fase 3, sub-etapa 3.2: rediseño de Navigation
+
+Fecha: 2026-07-26. Fase: 3 — implementación, sub-etapa 3.2.
+Rama: fase3/chrome (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Cierra el `// TODO fase3.2` que la Entrada 8 dejó en `Navigation`: en 3.0 el
+componente quedó funcional y con tokens Señal, pero sin jerarquía trabajada y
+sin la acción de conversión. No se tocaron secciones de contenido.
+
+## Qué se hizo
+
+**1. CTA de contacto persistente (lo central de la etapa).** `Button
+variant="primary"` (acento sólido + `--shadow-glow-sm` en hover, interacción
+#3 de DESIGN-SPEC §2) que hace `scrollToSection('contact')`. Visible en
+desktop al cierre de la barra y en el menú móvil como acción destacada al
+final del panel. Texto por i18n, `t('nav.cta')`.
+
+**2. Jerarquía visual en tres pesos.** El problema real no era añadir el CTA
+sino que el selector de idioma competía con él: el locale activo era una
+píldora `bg-accent text-accent-contrast`, es decir, un bloque de acento sólido
+del mismo peso que tendría el CTA. Con dos acentos sólidos en la barra, el
+señalizador de acción (DESIGN-SPEC §1) deja de señalar. Resuelto:
+- Navegación de sección — peso medio: `--color-text-muted` → hover
+  `--color-accent`.
+- Idioma — peso bajo: `es / en` en mono, minúsculas (`uppercase` visual),
+  activo en `--color-text`, inactivo en `--color-text-subtle`. Sin fondo.
+- CTA — peso alto: **único elemento con acento sólido** de la barra.
+- Divisor `w-px bg-border` entre navegación e idioma para separar grupos sin
+  añadir peso.
+- Wordmark como ancla a la izquierda.
+
+**3. Wordmark.** Sigue siendo tipográfico (Space Grotesk 700, `tracking-tight`),
+con el guion bajo de terminal de los mockups en `--color-accent` y `font-mono`
+como único detalle, `aria-hidden` (es ornamento, no texto). Estático: no
+parpadea; en 3.2 no entra ninguna animación.
+
+**4. Accesibilidad.**
+- Hamburguesa: `aria-expanded={isMenuOpen}` y `aria-controls` apuntando al
+  `id` del panel (`nav-mobile-menu`); el `svg` pasa a `aria-hidden`.
+- Locale activo: `aria-current="true"`, más `lang="es"`/`lang="en"` en cada
+  botón para que el lector pronuncie el código en su idioma.
+- El wordmark era un `<h1>` con `onClick`: inalcanzable por teclado y, además,
+  un segundo `h1` en la página. Ahora es `<button>`. Verificado sobre el HTML
+  emitido: la página pasa de dos `h1` a uno solo (el del hero).
+- Sin `outline` manual: lo cubre el `:focus-visible` global.
+
+**5. i18n.** Clave nueva `nav.cta` en `public/locales/{es,en}/common.json`
+(ES "Escríbenos", EN "Get in touch"). Es la única clave añadida.
+
+## Decisión: sin animación de scroll en el nav
+El nav de 3.2 es sticky y siempre visible. No se implementa aparición/
+ocultamiento al hacer scroll: DESIGN-SPEC no la especifica y el criterio para
+decidirla no existe todavía — depende de si el CTA del nav compite con el CTA
+del hero, y el hero se rediseña en 3.3. `backdrop-blur` y borde inferior
+quedan como estaban.
+
+## Verificación
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at "i18n.localeDetection"`:
+  **sigue igual** (preexistente). **No aparece ninguna advertencia nueva**; no
+  reaparece `NO_I18NEXT_INSTANCE`.
+- CTA por i18n en el HTML estático, no clave cruda:
+  `grep -o 'Escríbenos' .next/server/pages/es.html` → 4 líneas `Escríbenos`;
+  `grep -o 'Get in touch' .next/server/pages/en.html` → 2 líneas
+  `Get in touch`. Del conteo de `es`: 1 es el CTA renderizado del nav, 1 el
+  h3 preexistente "Escríbenos por correo" de Contacto y 2 son el payload JSON
+  de `__NEXT_DATA__` (en `en` son 1 renderizada + 1 del payload). El CTA del
+  menú móvil no aparece porque el panel solo se monta abierto.
+  `grep -oE 'nav\.[a-zA-Z.]+'` sobre ambos HTML no devuelve nada.
+
+## Archivos tocados
+`components/common/Navigation.tsx`,
+`public/locales/es/common.json`, `public/locales/en/common.json`,
+esta entrada.
+
+## Pendientes
+- **Animación de aparición-al-scroll del nav: diferida.** Se evalúa después
+  del rediseño del hero (3.3), con el criterio de si el CTA del nav compite
+  con el del hero. Si se decide implementarla, **especificar antes la
+  mini-animación con Claude Design** (trigger, propiedad, duración, easing,
+  comportamiento bajo `prefers-reduced-motion`) y añadirla a la tabla de
+  DESIGN-SPEC §2; no improvisarla en código.
+- Colisión leve de copy: el CTA del nav ("Escríbenos") repite el h3
+  "Escríbenos por correo" de Contacto, que sigue siendo copy de Fase 0.
+  Revisar al migrar el copy aprobado (DESIGN-SPEC §10) en 3.3.
+- `aria-label="Toggle menu"` de la hamburguesa sigue hardcodeado en inglés en
+  ambos locales. No se tradujo para no añadir claves fuera del alcance de esta
+  etapa; corregir cuando se toque i18n de nuevo.
+- Sin cambios en los demás pendientes de la Entrada 8 (secciones + spotlight +
+  avatares en 3.3; retiro de Neon Sunset y de las claves de variante legacy y
+  scrollbar en 3.5; y los heredados de la Entrada 7).
+
+---
+
 # Entrada 8 — Fase 3, sub-etapa 3.0: fundaciones + componentes comunes
 
 Fecha: 2026-07-26. Fase: 3 — implementación, sub-etapa 3.0.

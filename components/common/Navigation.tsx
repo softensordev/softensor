@@ -1,4 +1,3 @@
-// TODO fase3.2: rediseño completo de Navigation a dirección Señal
 'use client';
 
 import React, { useState } from 'react';
@@ -7,6 +6,9 @@ import React, { useState } from 'react';
 // copia del módulo (otro contexto de React) y t() devuelve la clave en SSG.
 import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
+import Button from './Button';
+
+const MOBILE_MENU_ID = 'nav-mobile-menu';
 
 const Navigation: React.FC = () => {
   const { t } = useTranslation('common');
@@ -32,51 +34,74 @@ const Navigation: React.FC = () => {
     { key: 'contact', id: 'contact' },
   ];
 
-  const localeButton = (locale: string) =>
-    router.locale === locale
-      ? 'bg-accent text-accent-contrast'
-      : 'bg-surface-raised text-text-muted hover:text-text';
+  /** Selector de idioma: peso bajo. Sin fondo sólido — el acento sólido queda
+   *  reservado para el CTA, que es la única acción de conversión de la barra. */
+  const LocaleSwitch: React.FC = () => (
+    <div className="flex items-center font-mono text-sm">
+      {(['es', 'en'] as const).map((locale, i) => {
+        const isActive = router.locale === locale;
+        return (
+          <React.Fragment key={locale}>
+            {i > 0 && <span className="text-text-subtle px-1.5">/</span>}
+            <button
+              lang={locale}
+              onClick={() => changeLanguage(locale)}
+              aria-current={isActive ? 'true' : undefined}
+              className={`px-1 py-1 uppercase transition-colors ${
+                isActive
+                  ? 'text-text'
+                  : 'text-text-subtle hover:text-text-muted'
+              }`}
+            >
+              {locale}
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/90 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-text cursor-pointer" onClick={() => scrollToSection('hero')}>
-              Softensor
-            </h1>
-          </div>
+          {/* Wordmark: ancla a la izquierda. Sin logo; tipográfico en sans 700,
+              con el guion bajo de terminal en acento como único detalle. */}
+          <button
+            onClick={() => scrollToSection('hero')}
+            className="flex-shrink-0 text-2xl md:text-3xl font-bold tracking-tight text-text"
+          >
+            Softensor
+            <span aria-hidden="true" className="font-mono text-accent">
+              _
+            </span>
+          </button>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8 lg:space-x-10">
-            {navItems.map(item => (
-              <button
-                key={item.key}
-                onClick={() => scrollToSection(item.id)}
-                className="text-base lg:text-lg font-medium text-text-muted hover:text-accent transition-colors"
-              >
-                {t(`nav.${item.key}`)}
-              </button>
-            ))}
-          </div>
-
-          {/* Language Toggle */}
-          <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => changeLanguage('es')}
-                className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('es')}`}
-              >
-                ES
-              </button>
-              <button
-                onClick={() => changeLanguage('en')}
-                className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('en')}`}
-              >
-                EN
-              </button>
+          {/* Desktop: navegación (peso medio) → idioma (peso bajo) → CTA (peso alto) */}
+          <div className="hidden md:flex items-center gap-6 lg:gap-8">
+            <div className="flex items-center gap-6 lg:gap-8">
+              {navItems.map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-base font-medium text-text-muted hover:text-accent transition-colors"
+                >
+                  {t(`nav.${item.key}`)}
+                </button>
+              ))}
             </div>
+
+            <span aria-hidden="true" className="h-5 w-px bg-border" />
+
+            <LocaleSwitch />
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => scrollToSection('contact')}
+            >
+              {t('nav.cta')}
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -85,12 +110,15 @@ const Navigation: React.FC = () => {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2.5 rounded-md bg-surface-raised text-text hover:bg-surface transition-colors"
               aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
+              aria-controls={MOBILE_MENU_ID}
             >
               <svg
                 className="w-7 h-7"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 {isMenuOpen ? (
                   <path
@@ -114,7 +142,7 @@ const Navigation: React.FC = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-6 space-y-3">
+          <div id={MOBILE_MENU_ID} className="md:hidden pb-6 space-y-1">
             {navItems.map(item => (
               <button
                 key={item.key}
@@ -124,21 +152,17 @@ const Navigation: React.FC = () => {
                 {t(`nav.${item.key}`)}
               </button>
             ))}
-            <div className="flex items-center justify-end px-5 pt-5 border-t border-border mt-4">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => changeLanguage('es')}
-                  className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('es')}`}
-                >
-                  ES
-                </button>
-                <button
-                  onClick={() => changeLanguage('en')}
-                  className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('en')}`}
-                >
-                  EN
-                </button>
-              </div>
+
+            {/* Idioma discreto y CTA como acción destacada al cierre del panel */}
+            <div className="flex items-center justify-between gap-4 px-5 pt-5 mt-4 border-t border-border">
+              <LocaleSwitch />
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => scrollToSection('contact')}
+              >
+                {t('nav.cta')}
+              </Button>
             </div>
           </div>
         )}
