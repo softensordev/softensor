@@ -7,6 +7,153 @@ bitácora.
 
 ---
 
+# Entrada 11 — Fase 3, sub-etapa 3.3-meta: metadatos del documento y corrección del H1
+
+Fecha: 2026-07-27. Fase: 3 — implementación, sub-etapa 3.3-meta.
+Rama: fase3/meta (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Etapa corta, de solo texto e i18n. **No se tocó ningún componente**: ni `Hero`,
+ni secciones, ni comunes. Cierra el pendiente de SEO que la Entrada 10 marcó
+como "el de mayor impacto comercial" y aplica una corrección de copy del H1.
+
+## Qué se hizo
+
+**1. Corrección del H1 del hero (reapertura de DESIGN-SPEC §10).** El H1
+aprobado en Fase 2 era ES "Ingeniería de software precisa, del brief al
+deploy." / EN "Precise software engineering, brief to deploy." La cola
+"brief/deploy" es jerga de nuestro oficio, no del cliente: el dueño de una
+pyme puede no saber qué es un "deploy", y el primer texto de la página no es
+sitio para hacerlo traducir. La cola nueva nombra al **destinatario** en vez
+del alcance:
+- ES: "Ingeniería de software precisa, hecha para tu negocio."
+- EN: "Precise software engineering, built for your business."
+
+Cambió solo `hero.title` en ambos locales. `hero.subtitle` y `hero.cta` sin
+tocar. **DESIGN-SPEC §10 quedó actualizado** con el H1 nuevo y con la versión
+vieja anotada como reemplazada y su motivo.
+
+**2. `<title>` y `<meta name="description">` por locale.** `pages/index.tsx`
+tenía `"Softensor - Software Innovation"` hardcodeado — inglés en **ambos**
+locales y con el posicionamiento de Fase 0 — y no tenía description. Ahora
+`Home()` usa `useTranslation('common')` (importado de **`next-i18next`**, no de
+`react-i18next` — el bug de contexto de la Entrada 8) y el `<Head>` consume
+`t('meta.title')` y `t('meta.description')`. Se conservó el `<meta viewport>`.
+
+Copy nuevo, redactado por idioma (no traducción literal), sin jerga y sin el
+encuadre "IA/ML/Cloud":
+
+| | `meta.title` | chars |
+|---|---|---|
+| ES | Softensor \| Software a la medida para tu pyme | 45 |
+| EN | Softensor \| Custom software for small businesses | 48 |
+
+| | `meta.description` | chars |
+|---|---|---|
+| ES | Creamos y mantenemos el software a la medida que tu negocio necesita. Hablas directo con quien lo construye. Cuéntanos tu caso, sin compromiso. | 143 |
+| EN | We build and maintain the custom software your business runs on. You talk straight to the developers who build it. Tell us what you need. | 136 |
+
+Ambos títulos bajo ~60 y ambas descriptions bajo ~155.
+
+**3. Hallazgo no previsto: había una segunda `description` hardcodeada.**
+`pages/_document.tsx` tenía `<meta name="description" content="Softensor -
+Innovación en desarrollo de software con IA, ML y Cloud" />`. Con el cambio de
+`index.tsx`, el HTML emitido quedaba con **dos** `<meta name="description">`:
+la nueva por locale y esa, en español en ambos locales y con el
+posicionamiento viejo que esta etapa retira. `_document.tsx` no puede usar
+`useTranslation` (renderiza fuera del contexto de i18n), así que la corrección
+correcta es **borrar la línea**: la de `index.tsx` la reemplaza y sí es por
+idioma. Verificado tras el fix: exactamente **1** description por página.
+
+**4. `getStaticProps` verificado, sin cambios.** `serverSideTranslations`
+ya carga el namespace `common` y las claves `meta.*` viven ahí. No hizo falta
+tocarlo.
+
+## Verificación del fold móvil — el H1 nuevo NO mejoró el fold en ES
+
+Medido igual que en 3.3a: build de producción servida, `getBoundingClientRect()`
+sobre el DOM real en Chrome headless, viewport 360×640 y el caso duro 360×560.
+
+| Locale | Viewport | H1 | Líneas | CTA (top–bottom) | Holgura bajo el fold |
+|--------|----------|-----|--------|------------------|----------------------|
+| ES | 360×640 | 32px | **4** | 444–504 | **136px** |
+| ES | 360×560 | 32px | **4** | 404–464 | **96px** |
+| EN | 360×640 | 32px | 3 | 441–501 | 139px |
+| EN | 360×560 | 32px | 3 | 401–461 | 99px |
+
+**La expectativa de la etapa era que el H1 nuevo, por más corto, mejorara el
+fold. Es falso, y en ES es al revés.** El conteo real de caracteres:
+
+- ES: 52 → **54** (es más largo, no más corto). Pasa de 3 a **4 líneas**.
+- EN: 46 → 54 (más largo también), pero **se queda en 3 líneas**: la tercera
+  solo se llena más.
+
+Consecuencia en ES: la holgura cae de 153px a 136px a 640 (y de 113px a 96px a
+560), exactamente **17px ≈ media línea** (`line-height` 33.92). Cuadra con que
+el hero está centrado verticalmente (`min-h-screen flex items-center`): una
+línea más empuja el contenido media línea hacia abajo. Ese cuadre es la
+comprobación interna de que la medida es buena. EN queda **idéntico** a 3.3a
+(441–501, 139px).
+
+**Veredicto: el CTA primario sigue visible sin scroll en ambos idiomas y en
+ambos viewports, con margen.** 96px de holgura en el peor caso es holgado. No
+se ajustó el `clamp`. Pero queda registrado que el margen del fold en ES es
+ahora menor, y que **una futura edición del H1 en ES que lo alargue más ya no
+tiene una línea de sobra**: la cuarta línea ya se gastó.
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at
+  "i18n.localeDetection"`: **sigue igual** (preexistente). **Ninguna
+  advertencia nueva.**
+- `<title>` por idioma en el HTML estático: `es.html` →
+  `Softensor | Software a la medida para tu pyme`; `en.html` →
+  `Softensor | Custom software for small businesses`. **Sin rastro de
+  "Software Innovation".** Nota de método: hay que grepear
+  `'<title[^>]*>'`, no `'<title>'` — Next emite `<title data-next-head="">`.
+- `<meta name="description">`: presente en ambos, cada uno en su idioma,
+  **1 sola por página**.
+- H1 nuevo renderizado: `'hecha para tu negocio'` en `es.html` → 2 (1
+  renderizado + 1 del payload `__NEXT_DATA__`); `'built for your business'` en
+  `en.html` → 2.
+- Claves crudas: `grep -oE 'meta\.(title|description)|hero\.[a-zA-Z]+'` sobre
+  ambos HTML → **sin resultados**.
+- Copy viejo: sin rastro de "Software Innovation", "IA, ML y Cloud",
+  "del brief al deploy" ni "brief to deploy" en el marcado.
+- `<html lang>`: correcto por locale (`es` / `en`), lo pone Next por el routing
+  i18n. No requiere trabajo.
+
+## Pendientes
+- **Servicios + Contacto en 3.3b**; **Confianza** (Team/TeamMemberCard) con
+  reescritura estructural en **3.3c**.
+- **Spotlight de dos niveles + avatares SVG + atmósfera de fondo en 3.4.**
+- **DESIGN-SPEC §10, "Confianza subtítulo", sigue diciendo "Del brief al
+  deploy, sin intermediarios"** — la misma jerga que se acaba de retirar del
+  H1, por el mismo motivo. No se cambió aquí: es copy de una sección no
+  implementada y la decisión es del arquitecto. **Debe resolverse antes de
+  3.3c**, o el sitio vuelve a decir "brief al deploy" más abajo en la página.
+- `aria-label="Toggle menu"` del nav **sigue hardcodeado en inglés** en ambos
+  locales (heredado de 3.2). Esta etapa tocó i18n pero solo añadió `meta.*` y
+  corrigió `hero.title`; no se metieron claves fuera de alcance.
+- Retiro de Neon Sunset en **3.5**: tokens de `globals.css`, alias legacy
+  `Button variant="neon"` y `Section background="gradient"|"dark"`, y el
+  **scrollbar** (`::-webkit-scrollbar-thumb` sigue con el gradiente
+  purple→pink). Los alias siguen en uso por las secciones sin migrar.
+- Animación de aparición-al-scroll del nav: sigue abierta para el arquitecto,
+  con el material de la Entrada 10. Si se implementa, especificar antes en
+  DESIGN-SPEC §2.
+- **Ya no es pendiente**: `footer.slogan` se mantiene como está
+  ("Innovación impulsada por la ciencia" / "Science-driven innovation") por
+  decisión de Luis. Cerrado.
+
+## Archivos tocados
+`public/locales/es/common.json`, `public/locales/en/common.json`,
+`pages/index.tsx`, `pages/_document.tsx`, `docs-claude/DESIGN-SPEC.md` (§10),
+esta entrada.
+
+---
+
 # Entrada 10 — Fase 3, sub-etapa 3.3a: rediseño de Hero y Footer
 
 Fecha: 2026-07-27. Fase: 3 — implementación, sub-etapa 3.3a.

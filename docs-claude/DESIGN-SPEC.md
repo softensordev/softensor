@@ -223,9 +223,14 @@ Sobre fondo `#07090A`:
 
 ## 10. Copy aprobado (ES / EN)
 
-**Hero H1**
-- ES: "Ingeniería de software precisa, del brief al deploy."
-- EN: "Precise software engineering, brief to deploy."
+**Hero H1** *(revisado en 3.3-meta — ver Entrada 11 de la bitácora)*
+- ES: "Ingeniería de software precisa, hecha para tu negocio."
+- EN: "Precise software engineering, built for your business."
+
+> Versión original de Fase 2, reemplazada: ES "Ingeniería de software precisa,
+> del brief al deploy." / EN "Precise software engineering, brief to deploy."
+> Motivo: "brief"/"deploy" es jerga técnica que el segmento pyme no comparte.
+> La cola nueva nombra al destinatario en vez del alcance.
 
 **Hero subtítulo**
 - ES: "Desarrollo full-stack a la medida: construimos y sostenemos el software
