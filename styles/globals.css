@@ -55,9 +55,12 @@
   --color-atmo-2:          #3AA8C4;
   --color-atmo-3:          #4C9AFF;
 
-  /* — Tipografía — */
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Roboto Mono", monospace;
+  /* — Tipografía —
+     Las variables --font-space-grotesk / --font-jetbrains-mono las inyecta
+     next/font/google desde pages/_app.tsx sobre el elemento raíz de la app.
+     El fallback dentro de var() cubre el caso de que aún no estén definidas. */
+  --font-sans: var(--font-space-grotesk, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono, ui-monospace), ui-monospace, "Roboto Mono", monospace;
 
   /* — Escala tipográfica — */
   --text-eyebrow: .75rem;   --text-eyebrow--line-height: 1.4;  --text-eyebrow--letter-spacing: .12em;
@@ -125,14 +128,18 @@
   box-sizing: border-box;
 }
 
+/* Sitio dark-only (dark/light diferido en Fase 2). El fondo y el color de
+   texto base son tokens Señal; no hay clase .dark ni toggle. */
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
+  background-color: var(--color-bg);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -153,16 +160,6 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #FF006E 0%, #FB5607 100%);
-}
-
-/* Ensure smooth transitions for theme changes */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Prevent transition on theme toggle for specific elements */
-.no-transition {
-  transition: none !important;
 }
 
 /* Custom gradient utilities */

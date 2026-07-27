@@ -2,7 +2,9 @@ import React from 'react';
 
 interface CardProps {
   children: React.ReactNode;
-  variant?: 'default' | 'neon' | 'gradient';
+  /** `neon` y `gradient` son alias legacy: solo existen para que las secciones
+   *  aún sin migrar compilen. Se eliminan en la sub-etapa 3.3. */
+  variant?: 'default' | 'raised' | 'neon' | 'gradient';
   className?: string;
   hover?: boolean;
 }
@@ -13,17 +15,18 @@ const Card: React.FC<CardProps> = ({
   className = '',
   hover = true,
 }) => {
-  const baseStyles = 'rounded-xl p-6 md:p-8 transition-all duration-300';
+  const baseStyles = 'rounded-lg p-6 md:p-8 border transition-colors duration-200 ease-standard';
 
   const variantStyles = {
-    default: 'bg-white dark:bg-sunset-medium border border-gray-200 dark:border-sunset-light',
-    neon: 'bg-sunset-dark border-2 border-neon-cyan shadow-neon-cyan',
-    gradient: 'bg-gradient-to-br from-sunset-medium to-sunset-dark border border-neon-purple',
+    default: 'bg-surface border-border',
+    raised: 'bg-surface-raised border-border',
+    neon: 'bg-surface border-border',
+    gradient: 'bg-surface-raised border-border',
   };
 
-  const hoverStyles = hover
-    ? 'hover:scale-105 hover:shadow-2xl cursor-pointer'
-    : '';
+  // El hover-lift real de las tarjetas se especifica en DESIGN-SPEC.md
+  // (spotlight de tarjeta, sub-etapa 3.3). Aquí solo la base.
+  const hoverStyles = hover ? 'hover:border-border-strong' : '';
 
   return (
     <div

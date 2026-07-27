@@ -7,6 +7,148 @@ bitácora.
 
 ---
 
+# Entrada 8 — Fase 3, sub-etapa 3.0: fundaciones + componentes comunes
+
+Fecha: 2026-07-26. Fase: 3 — implementación, sub-etapa 3.0.
+Rama: fase3/fundaciones-comunes (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+## Decisión: el sitio es dark-only en este rediseño
+Dark/light quedó diferido en Fase 2 (Entrada 7). Se formaliza aquí: no hay
+clase `.dark`, no hay toggle, no hay `dark:` en los componentes comunes. El
+estilo oscuro es incondicional y sale de los tokens Señal. Reintroducir light
+mode sería una fase propia (contraste, glows y spotlight sobre fondo claro).
+
+## Qué se hizo
+
+**1. Eliminado `contexts/ThemeContext.tsx` (bug de SSG).**
+El contexto hacía `if (!mounted) return null`: el árbol completo no se
+renderizaba hasta que el JS hidrataba en cliente. Verificado en el build: el
+HTML estático **no contenía marcado de la app**. Eso anulaba el SSG y con él
+el LCP, que es la métrica central del proyecto (objetivo < 2.5s en Android
+gama media 4G). Sumado a que dark/light está diferido, era código muerto que
+además rompía lo único que la landing tiene que hacer bien. Tras eliminarlo,
+`.next/server/pages/es.html` pasa a contener ~16KB de marcado renderizado en
+servidor.
+
+**2. Fuentes reales con `next/font/google`** (presupuesto de DESIGN-SPEC §8),
+cargadas en `pages/_app.tsx` — en pages router no pueden ir en `_document`:
+- Space Grotesk, pesos 500 y 700, subset `latin`, `display: swap`,
+  `preload: true`, variable `--font-space-grotesk`.
+- JetBrains Mono, **un solo peso: 500**, subset `latin`, `display: swap`,
+  `preload: false` (nunca es el hero), variable `--font-jetbrains-mono`.
+  La spec pedía "1 peso" sin fijar cuál; se eligió 500 para que labels,
+  eyebrows y badges casen con el peso de texto de Space Grotesk.
+Las variables se exponen en un `<div>` raíz que envuelve la app, con
+`font-sans`. En `globals.css`, `--font-sans`/`--font-mono` las consumen con
+fallback dentro del propio `var()` (si la variable faltara, `font-family`
+quedaría inválida en tiempo de cómputo y se perdería toda la cascada, no solo
+la primera familia). Verificado en el CSS emitido: `@font-face` con
+weights 500/700 (Grotesk) y 500 (Mono), y `<link rel="preload">` del woff2 de
+Grotesk en el HTML estático.
+
+**3. Fondo y texto base unificados a tokens Señal.** `html`/`body` toman
+`--color-bg`, `--color-text` y `--font-sans`, más `color-scheme: dark`. Se
+quitó de `pages/index.tsx` el `bg-white dark:bg-sunset-deep` que fijaba el
+fondo por fuera de los tokens. Se eliminaron el `* { transition:
+background-color, border-color }` global y `.no-transition` (artefactos del
+toggle de tema, sin uso).
+
+**4. Componentes comunes migrados a tokens Señal**, sin `dark:`, sin `neon-*`,
+`sunset-*`, `animate-glow` ni `bg-neon-gradient`:
+- `Button`: `primary` = acento teal sobre `--color-accent-contrast`, hover
+  `--color-accent-hover` + `--shadow-glow-sm` (interacción puntual, no loop);
+  `secondary`/`outline` = borde `--color-border-strong`. Se quitó el
+  `focus:ring-*` propio: el `:focus-visible` global ya lo cubre y el
+  `focus:outline-none` lo habría anulado por especificidad.
+- `Card`: superficies `--color-surface`/`--color-surface-raised`, borde
+  `--color-border`. Fuera el `hover:scale-105` genérico; el hover-lift real va
+  con el spotlight de tarjeta en 3.3.
+- `Section`: fondos `--color-bg` / `--color-surface`.
+- `SectionTitle`: fuera `neonEffect` y `animate-glow`; escala
+  `text-3xl md:text-display`, texto `--color-text`, subtítulo
+  `--color-text-muted`.
+
+**5. `Navigation` neutralizado** (su rediseño es 3.2): fuera `useTheme` y el
+botón toggle ☀️/🌙 en desktop y móvil, `dark:` reemplazado por tokens, misma
+estructura y disposición.
+
+## Concesión explícita de esta sub-etapa
+`Button`, `Card` y `Section` **conservan las claves de variante legacy**
+(`neon`, `gradient`, `dark`) como **alias mapeados a Señal**, porque
+`components/sections/*` todavía las pasa y esta sub-etapa no toca las
+secciones. No queda estilo Neon en los comunes — solo la clave. Se eliminan
+del tipo en 3.3, cuando migren las secciones.
+
+## Hallazgo bloqueante: SSG emite las claves i18n, no las traducciones
+Al restaurarse el SSG quedó a la vista un defecto que hasta ahora estaba
+enmascarado (con el árbol sin renderizar en servidor no había nada que
+traducir): el HTML estático sale con `hero.title`, `services.title`, etc.,
+literalmente. El build avisa
+`react-i18next:: useTranslation: ... NO_I18NEXT_INSTANCE`.
+
+Causa verificada: los componentes importan `useTranslation` de
+`'react-i18next'` (build ESM), mientras `appWithTranslation` monta el
+`I18nextProvider` de la **copia CJS** que trae `next-i18next`. Son dos
+instancias del módulo → dos contextos de React → `t()` devuelve la clave. No
+es duplicación de versiones (`npm ls` da 16.3.5 deduplicado) ni init asíncrono
+del i18next de servidor (probado: inicializa síncrono y traduce). En cliente
+el bundle resuelve a una sola copia, por eso el sitio "se veía bien" en el
+navegador.
+
+Confirmado por experimento: cambiar **solo** el import de `Navigation` a
+`from 'next-i18next'` hace que el HTML estático pase de `nav.home` a
+`Inicio`, mientras las secciones siguen emitiendo claves. Ese cambio queda
+aplicado en `Navigation`; el resto son secciones y esta sub-etapa no las toca.
+
+Impacto: el primer paint del HTML estático muestra claves y los crawlers
+indexan claves — con el LCP como métrica central, esto invalida el preview
+como gate visual hasta corregirlo. **Arreglo: una línea de import por
+archivo** en `Hero`, `Services`, `Team`, `TeamMemberCard`, `Contact`,
+`Footer`. Debe ser lo primero de 3.3, o un fix aparte antes del preview.
+
+**RESUELTO (2026-07-26, misma rama).** Aplicado el cambio de import a las 6
+secciones (solo esa línea; el rediseño visual sigue siendo 3.3). Verificado
+sobre el HTML emitido, no solo sobre el build:
+`grep -oE '(hero|services|team|contact|footer|nav|values)\.[a-zA-Z.]+'
+.next/server/pages/es.html` no devuelve nada, y el marcado estático de `es`
+trae "Innovación en Software / Transformamos ideas en soluciones
+tecnológicas" y el de `en` "Software Innovation / We transform ideas into
+technological solutions". La advertencia `NO_I18NEXT_INSTANCE` desapareció del
+build. El SSG ya es validable en el preview. (El copy sigue siendo el de Fase
+0; el aprobado en DESIGN-SPEC §10 entra en 3.3.)
+
+## Verificación
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas generadas.
+- Advertencia `Invalid literal value, expected false at "i18n.localeDetection"`:
+  **sigue igual** (preexistente, no introducida ni resuelta aquí). No aparecen
+  advertencias nuevas más allá del `NO_I18NEXT_INSTANCE` descrito arriba, que
+  no es nueva en el código sino recién visible.
+
+## Archivos tocados
+`pages/_app.tsx`, `pages/index.tsx`, `styles/globals.css`,
+`components/common/{Button,Card,Section,SectionTitle,Navigation}.tsx`,
+eliminado `contexts/ThemeContext.tsx` (y el directorio `contexts/`, ya vacío),
+esta entrada.
+
+## Pendientes
+- ~~Corregir el import de i18n en las 6 secciones~~ — hecho y verificado sobre
+  el HTML emitido (ver arriba). Ya no bloquea el preview.
+- Rediseño completo de `Navigation` a Señal → **3.2**.
+- Secciones (Hero, Servicios, Confianza, Proceso, Contacto), spotlight de dos
+  niveles y avatares SVG → **3.3**.
+- Retiro de la paleta Neon Sunset de `globals.css` (tokens, `@keyframes glow`,
+  `.bg-neon-gradient`, `.bg-sunset-gradient`) y de las claves de variante
+  legacy → **3.5**.
+- Scrollbar personalizado sigue en gradiente Neon (magenta/púrpura) sobre el
+  fondo `#07090A`: chirría visualmente, se retoca en 3.5.
+- Sin cambios en los pendientes heredados de la Entrada 7 (curaduría de
+  proyectos con David, sesión de fotos, animación de capas del avatar,
+  `softensor.com` sin conectar a Vercel).
+
+---
+
 # Entrada 7 — Fase 2: diseño (cierre de compuerta)
 
 Fecha: 2026-07-24. Fase: 2 — diseño. Rama: fase2/diseno.

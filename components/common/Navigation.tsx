@@ -1,14 +1,15 @@
+// TODO fase3.2: rediseño completo de Navigation a dirección Señal
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '@/contexts/ThemeContext';
+// El provider lo monta appWithTranslation con la copia CJS de react-i18next que
+// trae next-i18next; importar desde 'react-i18next' directamente resuelve a otra
+// copia del módulo (otro contexto de React) y t() devuelve la clave en SSG.
+import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
-import Button from './Button';
 
 const Navigation: React.FC = () => {
   const { t } = useTranslation('common');
-  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -31,13 +32,18 @@ const Navigation: React.FC = () => {
     { key: 'contact', id: 'contact' },
   ];
 
+  const localeButton = (locale: string) =>
+    router.locale === locale
+      ? 'bg-accent text-accent-contrast'
+      : 'bg-surface-raised text-text-muted hover:text-text';
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-sunset-deep/90 backdrop-blur-md border-b-2 border-gray-200 dark:border-sunset-light shadow-lg">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/90 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-neon-gradient cursor-pointer" onClick={() => scrollToSection('hero')}>
+            <h1 className="text-2xl md:text-3xl font-bold text-text cursor-pointer" onClick={() => scrollToSection('hero')}>
               Softensor
             </h1>
           </div>
@@ -48,43 +54,25 @@ const Navigation: React.FC = () => {
               <button
                 key={item.key}
                 onClick={() => scrollToSection(item.id)}
-                className="text-base lg:text-lg font-medium text-gray-700 dark:text-gray-300 hover:text-neon-purple dark:hover:text-neon-cyan transition-colors"
+                className="text-base lg:text-lg font-medium text-text-muted hover:text-accent transition-colors"
               >
                 {t(`nav.${item.key}`)}
               </button>
             ))}
           </div>
 
-          {/* Theme & Language Toggles */}
+          {/* Language Toggle */}
           <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-lg bg-gray-200 dark:bg-sunset-medium hover:bg-gray-300 dark:hover:bg-sunset-light transition-colors text-xl"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? '☀️' : '🌙'}
-            </button>
-
-            {/* Language Toggle */}
             <div className="flex space-x-2">
               <button
                 onClick={() => changeLanguage('es')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  router.locale === 'es'
-                    ? 'bg-neon-purple text-white shadow-neon-purple'
-                    : 'bg-gray-200 dark:bg-sunset-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-sunset-light'
-                }`}
+                className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('es')}`}
               >
                 ES
               </button>
               <button
                 onClick={() => changeLanguage('en')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  router.locale === 'en'
-                    ? 'bg-neon-purple text-white shadow-neon-purple'
-                    : 'bg-gray-200 dark:bg-sunset-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-sunset-light'
-                }`}
+                className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('en')}`}
               >
                 EN
               </button>
@@ -95,7 +83,7 @@ const Navigation: React.FC = () => {
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2.5 rounded-lg bg-gray-200 dark:bg-sunset-medium hover:bg-gray-300 dark:hover:bg-sunset-light transition-colors"
+              className="p-2.5 rounded-md bg-surface-raised text-text hover:bg-surface transition-colors"
               aria-label="Toggle menu"
             >
               <svg
@@ -131,37 +119,22 @@ const Navigation: React.FC = () => {
               <button
                 key={item.key}
                 onClick={() => scrollToSection(item.id)}
-                className="block w-full text-left px-5 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-sunset-medium rounded-lg transition-colors"
+                className="block w-full text-left px-5 py-3 text-base font-medium text-text-muted hover:bg-surface-raised hover:text-text rounded-md transition-colors"
               >
                 {t(`nav.${item.key}`)}
               </button>
             ))}
-            <div className="flex items-center justify-between px-5 pt-5 border-t-2 border-gray-200 dark:border-sunset-light mt-4">
-              <button
-                onClick={toggleTheme}
-                className="p-2.5 rounded-lg bg-gray-200 dark:bg-sunset-medium hover:bg-gray-300 dark:hover:bg-sunset-light transition-colors text-xl"
-                aria-label="Toggle theme"
-              >
-                {theme === 'dark' ? '☀️' : '🌙'}
-              </button>
+            <div className="flex items-center justify-end px-5 pt-5 border-t border-border mt-4">
               <div className="flex space-x-2">
                 <button
                   onClick={() => changeLanguage('es')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    router.locale === 'es'
-                      ? 'bg-neon-purple text-white'
-                      : 'bg-gray-200 dark:bg-sunset-medium text-gray-700 dark:text-gray-300'
-                  }`}
+                  className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('es')}`}
                 >
                   ES
                 </button>
                 <button
                   onClick={() => changeLanguage('en')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    router.locale === 'en'
-                      ? 'bg-neon-purple text-white'
-                      : 'bg-gray-200 dark:bg-sunset-medium text-gray-700 dark:text-gray-300'
-                  }`}
+                  className={`px-4 py-2 rounded-md font-semibold transition-colors ${localeButton('en')}`}
                 >
                   EN
                 </button>
