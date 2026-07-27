@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "Softensor | Software a la medida para tu pyme",
+    "description": "Creamos y mantenemos el software a la medida que tu negocio necesita. Hablas directo con quien lo construye. Cuéntanos tu caso, sin compromiso."
+  },
   "nav": {
     "home": "Inicio",
     "services": "Servicios",
@@ -7,7 +11,7 @@
     "cta": "Escríbenos"
   },
   "hero": {
-    "title": "Ingeniería de software precisa, del brief al deploy.",
+    "title": "Ingeniería de software precisa, hecha para tu negocio.",
     "subtitle": "Desarrollo full-stack a la medida: construimos y sostenemos el software que mueve tu pyme.",
     "cta": "Hablemos"
   },

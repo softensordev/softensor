@@ -1,4 +1,5 @@
 import { GetStaticProps } from 'next';
+import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 import Navigation from '@/components/common/Navigation';
@@ -9,10 +10,13 @@ import Contact from '@/components/sections/Contact';
 import Footer from '@/components/sections/Footer';
 
 export default function Home() {
+  const { t } = useTranslation('common');
+
   return (
     <>
       <Head>
-        <title>Softensor - Software Innovation</title>
+        <title>{t('meta.title')}</title>
+        <meta name="description" content={t('meta.description')} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 

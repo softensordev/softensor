@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "title": "Softensor | Custom software for small businesses",
+    "description": "We build and maintain the custom software your business runs on. You talk straight to the developers who build it. Tell us what you need."
+  },
   "nav": {
     "home": "Home",
     "services": "Services",
@@ -7,7 +11,7 @@
     "cta": "Get in touch"
   },
   "hero": {
-    "title": "Precise software engineering, brief to deploy.",
+    "title": "Precise software engineering, built for your business.",
     "subtitle": "Made-to-measure full-stack development: we build and maintain the software that runs your small business.",
     "cta": "Let's talk"
   },
