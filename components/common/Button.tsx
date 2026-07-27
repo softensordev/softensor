@@ -1,6 +1,8 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** `neon` es un alias legacy de `primary`: solo existe para que las secciones
+   *  aún sin migrar compilen. Se elimina en la sub-etapa 3.3. */
   variant?: 'primary' | 'secondary' | 'outline' | 'neon';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
@@ -13,13 +15,20 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'font-semibold rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  // Sin outline/ring propio: el :focus-visible global de globals.css lo cubre.
+  const baseStyles =
+    'font-bold rounded-md transition-colors duration-200 ease-standard active:scale-[.98]';
+
+  const primary =
+    'bg-accent text-accent-contrast hover:bg-accent-hover active:bg-accent-press hover:shadow-glow-sm';
+  const quiet =
+    'border border-border-strong text-text hover:bg-surface-raised';
 
   const variantStyles = {
-    primary: 'bg-neon-purple hover:bg-neon-pink text-white shadow-neon-purple hover:shadow-neon-pink',
-    secondary: 'bg-sunset-medium hover:bg-sunset-light text-white',
-    outline: 'border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-sunset-deep',
-    neon: 'bg-gradient-to-r from-neon-purple via-neon-pink to-neon-orange text-white hover:scale-105 shadow-lg',
+    primary,
+    secondary: quiet,
+    outline: quiet,
+    neon: primary,
   };
 
   const sizeStyles = {

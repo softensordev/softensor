@@ -16,7 +16,7 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <div className="min-h-screen bg-white dark:bg-sunset-deep">
+      <div className="min-h-screen">
         <Navigation />
         <main>
           <Hero />

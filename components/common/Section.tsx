@@ -4,7 +4,9 @@ interface SectionProps {
   id?: string;
   children: React.ReactNode;
   className?: string;
-  background?: 'default' | 'gradient' | 'dark';
+  /** `gradient` y `dark` son alias legacy: solo existen para que las secciones
+   *  aún sin migrar compilen. Se eliminan en la sub-etapa 3.3. */
+  background?: 'default' | 'surface' | 'gradient' | 'dark';
 }
 
 const Section: React.FC<SectionProps> = ({
@@ -14,9 +16,10 @@ const Section: React.FC<SectionProps> = ({
   background = 'default',
 }) => {
   const backgroundStyles = {
-    default: 'bg-white dark:bg-sunset-deep',
-    gradient: 'bg-gradient-to-b from-sunset-deep via-sunset-dark to-sunset-medium',
-    dark: 'bg-sunset-dark',
+    default: 'bg-bg',
+    surface: 'bg-surface',
+    gradient: 'bg-bg',
+    dark: 'bg-surface',
   };
 
   return (
