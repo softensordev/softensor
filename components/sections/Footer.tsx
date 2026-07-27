@@ -6,28 +6,27 @@ const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-sunset-deep border-t-2 border-sunset-light py-12 md:py-16">
+    <footer className="bg-bg border-t border-border py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
-        <div className="text-center space-y-6">
-          {/* Logo */}
-          <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-neon-gradient">
+        <div className="text-center space-y-4">
+          {/* Wordmark: mismo tratamiento que el del nav (sans 700 + guion bajo
+              de terminal en acento, aria-hidden por ser ornamento). Aquí no es
+              interactivo, así que va como texto plano — un <h3> suelto en el
+              footer rompería la jerarquía de encabezados de la página. */}
+          <p className="text-2xl md:text-3xl font-bold tracking-tight text-text">
             Softensor
-          </h3>
+            <span aria-hidden="true" className="font-mono text-accent">
+              _
+            </span>
+          </p>
 
-          {/* Slogan */}
-          <p className="text-base md:text-lg text-neon-cyan italic px-4">
+          <p className="text-base md:text-lg text-text-muted">
             {t('footer.slogan')}
           </p>
 
-          {/* Copyright */}
-          <p className="text-gray-400 text-sm md:text-base px-4">
+          <p className="text-sm text-text-subtle">
             © {currentYear} Softensor. {t('footer.rights')}
           </p>
-
-          {/* Decorative Line */}
-          <div className="pt-6">
-            <div className="h-1 w-32 md:w-40 mx-auto bg-gradient-to-r from-neon-purple via-neon-pink to-neon-orange rounded-full"></div>
-          </div>
         </div>
       </div>
     </footer>

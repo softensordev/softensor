@@ -7,10 +7,9 @@
     "cta": "Escríbenos"
   },
   "hero": {
-    "title": "Innovación en Software",
-    "subtitle": "Transformamos ideas en soluciones tecnológicas",
-    "description": "Somos un equipo de físicos, matemáticos, ingenieros y estadísticos desarrollando software full stack con IA, ML y Cloud.",
-    "cta": "Conoce más"
+    "title": "Ingeniería de software precisa, del brief al deploy.",
+    "subtitle": "Desarrollo full-stack a la medida: construimos y sostenemos el software que mueve tu pyme.",
+    "cta": "Hablemos"
   },
   "services": {
     "title": "Nuestros Servicios",

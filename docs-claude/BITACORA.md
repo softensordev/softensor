@@ -7,6 +7,144 @@ bitácora.
 
 ---
 
+# Entrada 10 — Fase 3, sub-etapa 3.3a: rediseño de Hero y Footer
+
+Fecha: 2026-07-27. Fase: 3 — implementación, sub-etapa 3.3a.
+Rama: fase3/secciones-hero-footer (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Primeras dos **secciones de contenido** migradas a Señal. Son las más simples
+del sitio a propósito: fijan el patrón que consumen 3.3b (Servicios +
+Contacto) y 3.3c (Confianza). No se tocó `Services`, `Team`, `TeamMemberCard`
+ni `Contact`. No se implementó spotlight, atmósfera de fondo ni avatares
+(eso es 3.4).
+
+## Qué se hizo
+
+**1. Hero: de tres campos de texto a dos.** El hero tenía título + subtítulo +
+descripción, y los tres competían. Con el copy aprobado (DESIGN-SPEC §10) el
+H1 ya carga la propuesta de valor completa ("del brief al deploy" dice el
+alcance) y el subtítulo dice a quién sirve; la descripción vieja ("físicos,
+matemáticos, ingenieros y estadísticos... IA, ML y Cloud") era jerga de
+capacidades, no beneficio para pyme. **Se eliminó `hero.description`** del
+componente y de ambos locales. Verificado antes de borrarla que ningún otro
+componente la referenciaba.
+
+**2. H1 tipográfico, sin ornamento.** Fuera `bg-neon-gradient` +
+`animate-glow`. Ahora `text-[clamp(2rem,7vw,3.25rem)]` con `--text-display`
+(3.25rem) como techo, peso 700, `--color-text`. Nota de implementación para
+las siguientes etapas: **la utilidad arbitraria `text-[clamp(...)]` no hereda
+los modificadores del token** (`--text-display--line-height/-letter-spacing`),
+así que `leading-[1.06]` y `tracking-[-.03em]` van explícitos. `text-balance`
+en el H1 y `text-pretty` en el subtítulo.
+
+**3. Subtítulo sin acento.** Era `text-neon-cyan` a `text-3xl/4xl`, es decir,
+un segundo titular de color. Ahora `--color-text-muted`, `--text-lg/xl`, peso
+medio: texto de apoyo. Coherente con DESIGN-SPEC §1 — el acento solo marca
+acción, y en el hero la única acción es el CTA.
+
+**4. CTA.** `variant="primary"` (era `neon`), sin `animate-float`. El float
+era un loop permanente sobre el único elemento de conversión de la página:
+ruido que compite con la interacción real (#3/#4 de la tabla §2, que sí son
+puntuales). Sigue haciendo scroll a `#contact`.
+
+**5. Eliminados los elementos decorativos del hero** (tres círculos
+`blur-xl animate-pulse` en neon-pink/purple/cyan). No están en la dirección
+y `animate-pulse` es un loop no especificado en §2. El hero queda sobre
+`--color-bg` limpio; el fondo atmosférico (paths + halo) entra en 3.4.
+
+**6. `background="gradient"` → `"default"`** en `Section`. El alias legacy ya
+no tiene consumidores en el hero.
+
+**7. Footer.** `bg-sunset-deep` + `border-sunset-light` → `bg-bg` +
+`border-t border-border`. La separación visual con Contacto (que es
+`bg-surface`) la da el contraste de superficies, no un borde grueso. Wordmark
+tipográfico con **el mismo guion bajo en acento que el nav** (`aria-hidden`),
+para que la marca lea igual arriba y abajo. Slogan sin `italic` ni acento
+(`--color-text-muted`); copyright en `--color-text-subtle`. Eliminada la línea
+decorativa con gradiente neon-purple/pink/orange.
+
+Detalle a11y: el wordmark del footer era un `<h3>` — un encabezado de nivel 3
+colgando sin h2 padre, y además no es un encabezado de sección. Pasa a `<p>`.
+No se hizo interactivo: el nav ya ofrece el ancla al hero.
+
+**8. Copy i18n del hero** (DESIGN-SPEC §10, literal). CTA nuevo: ES
+"Hablemos" / EN "Let's talk". Se cambió el viejo "Conoce más"/"Learn more"
+porque no nombraba la acción real (abrir conversación, no leer más), y se
+eligió distinto del CTA del nav ("Escríbenos"/"Get in touch") para no repetir
+la misma etiqueta dos veces en el mismo viewport.
+
+## Verificación del fold móvil (medida, no estimada)
+Servida la build de producción y medido con `getBoundingClientRect()` sobre el
+DOM real, viewport 360×640:
+
+| Locale | H1 | Líneas | CTA (top–bottom) | Holgura bajo el fold |
+|--------|-----|--------|------------------|----------------------|
+| ES | 32px | 3 | 427–487 | 153px |
+| EN | 32px | 3 | 441–501 | 139px |
+
+Caso más duro, 360×**560** (barra de navegador móvil real comiendo viewport):
+CTA termina en 447, holgura **113px**. El CTA primario queda visible sin
+scroll en ambos idiomas con margen; no hizo falta ajustar el clamp.
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at
+  "i18n.localeDetection"`: **sigue igual** (preexistente). **Ninguna
+  advertencia nueva.**
+- Copy nuevo renderizado en el HTML estático (no clave cruda):
+  `grep -o 'del brief al deploy' .next/server/pages/es.html` → 2 (1 renderizado
+  + 1 del payload `__NEXT_DATA__`); `'que mueve tu pyme'` → 2; `>Hablemos<` → 1.
+  En `en.html`: `'brief to deploy'` → 2, `'runs your small business'` → 2,
+  `>Let&#x27;s talk<` → 1.
+- `grep -oE 'hero\.[a-zA-Z]+'` sobre ambos HTML: **sin resultados**.
+- Copy viejo: sin rastro de "Innovación en Software", "físicos, matemáticos",
+  "Conoce más"/"Learn more" en el marcado. **Único match residual: el `<title>`
+  de `pages/index.tsx`** — ver pendientes.
+- `<h1>` en la página: sigue siendo **1**.
+
+## Pendientes
+- **`<title>` del documento sigue siendo copy de Fase 0**: `pages/index.tsx`
+  tiene hardcodeado `"Softensor - Software Innovation"`, en inglés en **ambos**
+  locales y con el posicionamiento viejo. Es lo que ve Google y la pestaña.
+  Fuera del alcance de 3.3a (no se tocó `pages/`), pero debe entrar en 3.3b o
+  en una sub-etapa de metadatos junto con `<meta name="description">`, que
+  tampoco existe. **Es el pendiente de mayor impacto comercial de la lista.**
+- **`footer.slogan` sin cambiar, anotado a propósito**: "Innovación impulsada
+  por la ciencia" / "Science-driven innovation" es de Fase 0 y roza con el
+  posicionamiento nuevo, que ya no vende ciencia sino ejecución ("ingeniería
+  precisa", "el software que mueve tu pyme"). No es contradictorio, pero es el
+  último sitio de la página donde sobrevive el encuadre viejo. Alternativas
+  alineadas si se decide cambiarlo: ES "Del brief al deploy" / EN "From brief
+  to deploy" (eco del H1), o ES "Software que sostiene tu negocio" / EN
+  "Software that keeps your business running". Decisión del arquitecto.
+- Servicios + Contacto en **3.3b**; Confianza (Team/TeamMemberCard) con
+  reescritura estructural en **3.3c**.
+- Spotlight de dos niveles + avatares SVG + atmósfera de fondo en **3.4**.
+- `aria-label="Toggle menu"` del nav **sigue hardcodeado en inglés** en ambos
+  locales (heredado de 3.2). Esta etapa tocó i18n pero solo el bloque `hero`;
+  no se añadieron claves fuera de alcance. Sigue pendiente.
+- Retiro de Neon Sunset en **3.5**: tokens de `globals.css`, alias legacy
+  `Button variant="neon"` y `Section background="gradient"|"dark"`, y el
+  **scrollbar** (`::-webkit-scrollbar-thumb` sigue con el gradiente
+  purple→pink; se ve como una franja magenta al borde derecho en las capturas
+  de este trabajo). Los alias siguen en uso por las secciones sin migrar, así
+  que no se pueden borrar hasta cerrar 3.3c.
+- Animación de aparición-al-scroll del nav: **ya se puede decidir**. El
+  criterio que la Entrada 9 dejó abierto era si el CTA del nav compite con el
+  del hero; con el hero rediseñado, ambos son ahora `variant="primary"` con el
+  mismo acento sólido y quedan a ~350px de distancia vertical en móvil. Hay
+  material para que el arquitecto decida en el preview. Si se implementa,
+  **especificar antes en DESIGN-SPEC §2**, no improvisar.
+
+## Archivos tocados
+`components/sections/Hero.tsx`, `components/sections/Footer.tsx`,
+`public/locales/es/common.json`, `public/locales/en/common.json`,
+esta entrada.
+
+---
+
 # Entrada 9 — Fase 3, sub-etapa 3.2: rediseño de Navigation
 
 Fecha: 2026-07-26. Fase: 3 — implementación, sub-etapa 3.2.
