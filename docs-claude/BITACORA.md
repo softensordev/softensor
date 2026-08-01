@@ -7,6 +7,163 @@ bitácora.
 
 ---
 
+# Entrada 12 — Fase 3, sub-etapa 3.3b: rediseño de Servicios y Contacto
+
+Fecha: 2026-08-01. Fase: 3 — implementación, sub-etapa 3.3b.
+Rama: fase3/secciones-servicios-contacto (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Migración de las dos secciones a la dirección Señal, más dos ajustes menores
+heredados de 3.2/3.3a. **No se tocó** `Team`/`TeamMemberCard` (es 3.3c), ni
+`Hero`, ni `config/contactChannels.tsx`, ni `styles/globals.css`.
+
+## Qué se hizo
+
+**1. Servicios migrado a Señal.** `Section background="dark"` → `"default"`,
+`Card variant="neon"` → variante `default` (superficie + borde de token),
+`text-${service.color}` (los `neon-*`) → `text-text` para el título,
+`text-gray-300` → `text-text-muted`. Se eliminó el campo `color: 'neon-*'` del
+array de servicios: ya no existe color por tarjeta. Las 4 categorías
+(`fullstack`, `cloud`, `ai`, `data`) y su copy i18n **no cambiaron**.
+
+**2. Emojis → SVG de línea inline, sin dependencia nueva.** Los cuatro emojis
+(💻 ☁️ 🤖 📊) se reemplazaron por markup SVG estilo Lucide (MIT) copiado al
+repo: código (`</>`), nube, cpu y gráfico de barras. Mismo contrato visual que
+el sobre de `contactChannels.tsx` — `viewBox="0 0 24 24"`, `fill="none"`,
+`stroke="currentColor"`, `strokeWidth="1.5"`, `aria-hidden="true"`.
+**No se instaló `lucide-react` ni ningún paquete** (`git diff package.json`
+vacío, ver verificación).
+
+**Decisión de color del icono: `--color-text`, no acento.** DESIGN-SPEC §1 fija
+que el acento teal aparece **solo donde hay una acción**, y las tarjetas de
+servicio no son clicables. Pintarlas de teal degradaría el señalizador de
+"esto se puede tocar" justo antes de la sección de Contacto, que sí lo es. En
+Contacto el icono **sí** va en acento: allí la tarjeta entera es un `<a>`.
+
+**3. Bloque de stack tecnológico: i18n y datos.** El `<h3>` decía literalmente
+`"Stack Tecnológico / Tech Stack"` — las dos lenguas juntas y hardcodeadas, en
+ambos locales. Ahora es `t('services.stack.title')` (ES "Stack tecnológico" /
+EN "Tech stack"). La lista de 14 tecnologías estaba hardcodeada en el JSX; se
+movió a `config/services.tsx` como `techStack: string[]`. Los nombres de
+producto **no se traducen** (mismo criterio que `tags` en `config/projects.ts`).
+Las 14 se mantienen sin cambios. Chips migrados: `bg-sunset-medium
+border-neon-purple ... hover:border-neon-cyan hover:text-neon-cyan` →
+`bg-surface-raised border-border text-text-muted` con hover a
+`border-accent`/`text-accent` (el chip sí responde al puntero, así que el
+acento en hover es coherente con §1).
+
+**4. `config/services.tsx` nuevo.** Mismo patrón que `contactChannels.tsx` y
+`projects.ts`: interface exportada + array exportado. Agregar un servicio =
+añadir UN objeto; `Services.tsx` no cambia. Va en `.tsx` porque el icono es
+`React.ReactNode`, igual que el canal de correo.
+
+**5. Layout: grilla limpia, sin bento.** DESIGN-SPEC menciona bento para
+servicios; se descartó **a propósito**. Un bento jerarquiza por tamaño de celda,
+y las cuatro categorías tienen el mismo peso comercial: darle una celda grande a
+una comunicaría una prioridad que no existe. Se conservó
+`grid-cols-1 md:grid-cols-2 lg:grid-cols-4` migrada a tokens (columna única en
+móvil). **Único cambio de layout**: el contenido de la tarjeta pasó de centrado
+a alineado a la izquierda — es la retícula suiza de la dirección Señal, y con
+descripciones de 2–3 líneas el borde izquierdo compartido lee mejor que cuatro
+bloques centrados. Contacto **sí** sigue centrado (ahí el contenido es un dato
+copiable corto, y hay que conservar el caso de canal único centrado).
+
+**6. Contacto migrado a Señal.** `Section background="dark"` → `"default"`,
+`Card variant="gradient"` → `"raised"`, `text-neon-cyan` → `text-accent` (icono
+y dato copiable), `text-white` → `text-text`, `text-gray-300` →
+`text-text-muted`. **Arquitectura intacta**: sigue consumiendo
+`config/contactChannels.tsx`, con `buildHref`, `aria-label`, `select-all` del
+correo, `target="_blank"` condicional al canal externo y el manejo de canal
+único centrado (`md:only:*`). Copy i18n sin cambios. La tarjeta de contacto
+queda en `surface-raised` sobre `bg` mientras las de servicio quedan en
+`surface`: es deliberado — la tarjeta de conversión va medio escalón más
+elevada que las informativas.
+
+**7. Guion bajo del wordmark retirado** (decisión de Luis). Se eliminó el
+`<span aria-hidden="true">_</span>` de `Navigation.tsx` (añadido en 3.2) y de
+`Footer.tsx` (3.3a). Wordmark limpio: "Softensor", sans 700, `text-text`. Solo
+se quitó ese elemento; no se rediseñó nada más de esos componentes.
+
+**8. `aria-label` del nav a i18n.** El botón hamburguesa tenía
+`aria-label="Toggle menu"` hardcodeado en inglés en ambos locales (heredado de
+3.2 y señalado como pendiente en las Entradas 10 y 11). Ahora es
+`t('nav.menuToggle')`. ES **"Menú"**, EN **"Toggle menu"**: en español "Menú" a
+secas describe el control sin comprometerse con abrir/cerrar — el estado ya lo
+comunica `aria-expanded`, que el botón ya tenía, así que un label tipo "Abrir
+menú" contradiría al lector de pantalla cuando el panel está abierto.
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at
+  "i18n.localeDetection"`: **sigue igual** (preexistente). **Ninguna
+  advertencia nueva.**
+- Encabezado del stack por idioma en el HTML estático:
+  `es.html` → `<h3 ...>Stack tecnológico</h3>`; `en.html` →
+  `<h3 ...>Tech stack</h3>`. **Sin rastro de "Stack Tecnológico / Tech Stack".**
+- Claves crudas: `grep -oE 'services\.stack\.title|nav\.menuToggle|services\.[a-z]+\.(title|description)'`
+  sobre ambos HTML → **sin resultados**.
+- `aria-label` del hamburguesa renderizado: `es.html` → `"Menú"`;
+  `en.html` → `"Toggle menu"`.
+- Wordmark: `grep -c '>_<'` → **0** en ambos HTML. "Softensor" aparece 7 veces
+  (nav, footer, copyright, copy de contacto, payload).
+- Iconos SVG presentes en el HTML emitido (los `path` de código, nube y barras
+  se encuentran en `es.html`): son inline, no un sprite ni un paquete.
+- Reglas de hover emitidas por Tailwind:
+  `.hover\:border-accent:hover{border-color:var(--color-accent)}` y
+  `.hover\:text-accent:hover{color:var(--color-accent)}`. CSS total: 32.8KB.
+
+## Peso del bundle
+- **`git diff package.json` y `package-lock.json`: vacío. Cero dependencias
+  nuevas.** Los cuatro iconos son ~10 `path` inline; el costo es marcado en el
+  HTML, no JS. (Referencia: `lucide-react` habría metido un paquete entero al
+  árbol para cuatro glifos.)
+- Turbopack en Next 16 **no imprime la tabla de tamaños por ruta** que se
+  esperaba comparar. Medido a mano como línea base para etapas siguientes:
+  `.next/static/chunks` = **501.751 bytes**; CSS = **32.835 bytes**;
+  `es.html` = 24.141 B, `en.html` = 27.762 B.
+- Observación (preexistente, no de esta etapa): `en.html` pesa ~3.6KB más que
+  `es.html` porque `__NEXT_DATA__` embarca **el store de ES además del de EN**
+  — `fallbackLng` cae al `defaultLocale: 'es'` de `next-i18next.config.js`. No
+  se tocó; queda anotado por si el presupuesto de payload aprieta.
+
+## Estado de la migración a Señal
+Clases legacy (`neon-*`, `sunset-*`, `text-gray-300`, `text-white`) en el
+código fuente: quedan **solo** en `Team.tsx` y `TeamMemberCard.tsx` (3.3c) y en
+los tokens de `styles/globals.css` (3.5). Los alias legacy de componentes en
+uso son ahora `Section background="gradient"` y `Card variant="gradient"`,
+ambos únicamente en Team — al cerrar 3.3c quedan libres para borrarse en 3.5.
+
+## Pendientes
+- **Confianza (Team/TeamMemberCard) con reescritura estructural en 3.3c.**
+  Luis resolvió ahí el copy que la Entrada 11 dejaba abierto: el subtítulo de
+  Confianza es **"Dos socios full-stack. Nos encargamos de todo el proceso, sin
+  intermediarios: hablas con quien construye."** — sin "del brief al deploy",
+  por el mismo motivo que se retiró del H1. **DESIGN-SPEC §10 todavía tiene la
+  versión vieja**; esta entrada manda sobre ella (regla de la cabecera de la
+  bitácora), pero conviene actualizar §10 al abrir 3.3c.
+- **Spotlight de dos niveles + avatares SVG + atmósfera de fondo en 3.4.**
+- Retiro de Neon Sunset en **3.5**: tokens de `globals.css`, alias legacy
+  (`Button variant="neon"`, `Section background="gradient"|"dark"`,
+  `Card variant="neon"|"gradient"`) y el **scrollbar**
+  (`::-webkit-scrollbar-thumb` sigue con el gradiente purple→pink).
+- Animación de aparición-al-scroll del nav: sigue abierta para el arquitecto,
+  con el material de la Entrada 10. Si se implementa, especificar antes en
+  DESIGN-SPEC §2.
+- Copy de Servicios sin revisar: `services.title` "Nuestros Servicios" /
+  `services.subtitle` "Soluciones completas para tu negocio" siguen siendo el
+  texto de Fase 0. Esta etapa era migración de estilo y **no** tocó el
+  contenido de esas claves; si el arquitecto quiere copy nuevo, es una etapa
+  de texto como la 3.3-meta.
+
+## Archivos tocados
+`config/services.tsx` (nuevo), `components/sections/Services.tsx`,
+`components/sections/Contact.tsx`, `components/common/Navigation.tsx`,
+`components/sections/Footer.tsx`, `public/locales/es/common.json`,
+`public/locales/en/common.json`, esta entrada.
+
+---
+
 # Entrada 11 — Fase 3, sub-etapa 3.3-meta: metadatos del documento y corrección del H1
 
 Fecha: 2026-07-27. Fase: 3 — implementación, sub-etapa 3.3-meta.

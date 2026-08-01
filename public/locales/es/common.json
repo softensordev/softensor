@@ -8,7 +8,8 @@
     "services": "Servicios",
     "team": "Equipo",
     "contact": "Contacto",
-    "cta": "Escríbenos"
+    "cta": "Escríbenos",
+    "menuToggle": "Menú"
   },
   "hero": {
     "title": "Ingeniería de software precisa, hecha para tu negocio.",
@@ -33,6 +34,9 @@
     "data": {
       "title": "Análisis de Datos",
       "description": "Transformamos datos en insights accionables para tu negocio."
+    },
+    "stack": {
+      "title": "Stack tecnológico"
     }
   },
   "team": {
