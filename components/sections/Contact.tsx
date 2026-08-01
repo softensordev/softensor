@@ -9,7 +9,7 @@ const Contact: React.FC = () => {
   const { t } = useTranslation('common');
 
   return (
-    <Section id="contact" background="dark">
+    <Section id="contact" background="default">
       <SectionTitle
         title={t('contact.title')}
         subtitle={t('contact.subtitle')}
@@ -26,17 +26,19 @@ const Contact: React.FC = () => {
               : {})}
             className="block md:only:col-span-2 md:only:w-full md:only:max-w-md md:only:justify-self-center"
           >
-            <Card variant="gradient" className="h-full text-center">
+            <Card variant="raised" className="h-full text-center">
               <div className="flex flex-col items-center space-y-4">
-                <span className="text-neon-cyan">{channel.icon}</span>
-                <h3 className="text-xl md:text-2xl font-semibold text-white">
+                {/* Aquí el acento sí corresponde: la tarjeta entera es un
+                    enlace, y el icono y el dato copiable son la acción. */}
+                <span className="text-accent">{channel.icon}</span>
+                <h3 className="text-xl md:text-2xl font-semibold text-text">
                   {t(`${channel.i18nKey}.label`)}
                 </h3>
-                <p className="text-gray-300 text-base">
+                <p className="text-text-muted text-base">
                   {t(`${channel.i18nKey}.description`)}
                 </p>
                 {channel.detail && (
-                  <span className="select-all text-neon-cyan font-mono text-sm md:text-base break-all">
+                  <span className="select-all text-accent font-mono text-sm md:text-base break-all">
                     {channel.detail}
                   </span>
                 )}

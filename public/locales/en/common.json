@@ -8,7 +8,8 @@
     "services": "Services",
     "team": "Team",
     "contact": "Contact",
-    "cta": "Get in touch"
+    "cta": "Get in touch",
+    "menuToggle": "Toggle menu"
   },
   "hero": {
     "title": "Precise software engineering, built for your business.",
@@ -33,6 +34,9 @@
     "data": {
       "title": "Data Analysis",
       "description": "We transform data into actionable insights for your business."
+    },
+    "stack": {
+      "title": "Tech stack"
     }
   },
   "team": {

@@ -65,16 +65,13 @@ const Navigation: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/90 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
         <div className="flex justify-between items-center h-20">
-          {/* Wordmark: ancla a la izquierda. Sin logo; tipográfico en sans 700,
-              con el guion bajo de terminal en acento como único detalle. */}
+          {/* Wordmark: ancla a la izquierda. Sin logo; tipográfico limpio en
+              sans 700. */}
           <button
             onClick={() => scrollToSection('hero')}
             className="flex-shrink-0 text-2xl md:text-3xl font-bold tracking-tight text-text"
           >
             Softensor
-            <span aria-hidden="true" className="font-mono text-accent">
-              _
-            </span>
           </button>
 
           {/* Desktop: navegación (peso medio) → idioma (peso bajo) → CTA (peso alto) */}
@@ -109,7 +106,7 @@ const Navigation: React.FC = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2.5 rounded-md bg-surface-raised text-text hover:bg-surface transition-colors"
-              aria-label="Toggle menu"
+              aria-label={t('nav.menuToggle')}
               aria-expanded={isMenuOpen}
               aria-controls={MOBILE_MENU_ID}
             >
