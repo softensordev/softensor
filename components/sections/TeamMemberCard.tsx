@@ -1,58 +1,61 @@
 import React from 'react';
 import { useTranslation } from 'next-i18next';
 import Card from '../common/Card';
-import { TeamMember } from '@/types/team';
+import Avatar from './Avatar';
+import { TeamMember } from '../../config/team';
 
 interface TeamMemberCardProps {
   member: TeamMember;
 }
 
+// Tarjeta COLAPSADA de un socio (3.3c-1): avatar + nombre + disciplina + rol +
+// tagline. Sin interacción.
+//
+// `bio` y `stack` existen en config/team.ts pero NO se renderizan aquí todavía:
+// son el contenido de la expansión apilada (DESIGN-SPEC §7), que es 3.3c-2.
 const TeamMemberCard: React.FC<TeamMemberCardProps> = ({ member }) => {
   const { t } = useTranslation('common');
 
-  const roleColors = {
-    physicist: 'neon-blue',
-    mathematician: 'neon-purple',
-    engineer: 'neon-pink',
-    statistician: 'neon-cyan',
-  };
-
-  const roleIcons = {
-    physicist: '⚛️',
-    mathematician: '∑',
-    engineer: '⚙️',
-    statistician: '📈',
-  };
-
   return (
-    <Card variant="gradient">
-      <div className="text-center space-y-5 py-2">
-        {/* Avatar */}
-        <div className="w-24 h-24 md:w-28 md:h-28 mx-auto rounded-full bg-gradient-to-br from-neon-purple to-neon-pink flex items-center justify-center text-4xl md:text-5xl mb-2">
-          {roleIcons[member.role]}
+    <Card className="h-full">
+      <div className="space-y-4">
+        <Avatar
+          avatar={member.avatar}
+          uid={member.id}
+          className="w-20 h-20 md:w-24 md:h-24"
+        />
+
+        <div className="space-y-1">
+          {/* Nombre propio: no pasa por i18n. */}
+          <h3 className="text-xl md:text-2xl font-bold text-text">
+            {member.name}
+          </h3>
+          {/* Disciplina: reutiliza el bloque preexistente `team.roles`. */}
+          <p className="text-sm md:text-base text-text-muted">
+            {t(`team.roles.${member.discipline}`)}
+          </p>
+          {/* `member.role` YA es la clave i18n compartida (`team.founderRole`). */}
+          <p className="text-xs md:text-sm text-text-subtle">
+            {t(member.role)}
+          </p>
         </div>
 
-        {/* Name */}
-        <h3 className="text-lg md:text-xl font-bold text-white px-2">
-          {member.name}
-        </h3>
-
-        {/* Role */}
-        <p className={`text-sm md:text-base text-${roleColors[member.role]} font-semibold px-2`}>
-          {t(`team.roles.${member.role}`)}
+        <p className="text-sm md:text-base text-text-muted leading-relaxed">
+          {t(member.tagline)}
         </p>
 
-        {/* Specialties */}
-        <div className="flex flex-wrap justify-center gap-2 pt-2 px-2">
-          {member.specialties.map((specialty, index) => (
-            <span
-              key={index}
-              className="px-3 py-1.5 text-xs md:text-sm bg-sunset-deep border border-neon-cyan rounded-full text-gray-300"
-            >
-              {specialty}
-            </span>
-          ))}
-        </div>
+        {/* Enlace opcional: si `portfolioUrl` es undefined no se renderiza nada.
+            Va en acento porque aquí sí hay una acción (DESIGN-SPEC §1). */}
+        {member.portfolioUrl && (
+          <a
+            href={member.portfolioUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-sm md:text-base text-accent hover:text-accent-hover transition-colors duration-200 ease-standard"
+          >
+            {t('team.viewPortfolio')}
+          </a>
+        )}
       </div>
     </Card>
   );

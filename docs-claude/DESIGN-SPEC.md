@@ -239,9 +239,17 @@ Sobre fondo `#07090A`:
   software that runs your small business." *(no se usa "SME")*
 
 **Confianza título**: "Un matemático y un físico construyendo software."
+- EN: "A mathematician and a physicist building software."
 
-**Confianza subtítulo**: "Dos socios full-stack. Del brief al deploy, sin
-intermediarios: hablas con quien construye."
+**Confianza subtítulo** *(revisado en 3.3c-1 — ver Entrada 13 de la bitácora)*
+- ES: "Dos socios full-stack. Nos encargamos de todo el proceso, sin
+  intermediarios: hablas con quien construye."
+- EN: "Two full-stack partners. We handle the whole process, no middlemen: you
+  talk straight to the people who build it."
+
+> Versión original de Fase 2, reemplazada: "Dos socios full-stack. Del brief al
+> deploy, sin intermediarios: hablas con quien construye." Mismo motivo que el
+> H1: "brief/deploy" es jerga que el segmento pyme no comparte.
 
 > Nota Fase 3: este copy es texto visible → va por i18n (`common.json`), no
 > hardcodeado. Aquí queda como fuente aprobada.

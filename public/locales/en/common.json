@@ -40,9 +40,10 @@
     }
   },
   "team": {
-    "title": "Our Team",
-    "subtitle": "Software development experts",
+    "title": "A mathematician and a physicist building software.",
+    "subtitle": "Two full-stack partners. We handle the whole process, no middlemen: you talk straight to the people who build it.",
     "founderRole": "Co-founder · Full-stack",
+    "viewPortfolio": "View portfolio",
     "roles": {
       "physicist": "Physicist",
       "mathematician": "Mathematician",
