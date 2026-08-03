@@ -77,25 +77,14 @@
     }
   },
   "projects": {
+    "title": "Proyectos",
+    "viewProject": "Ver proyecto",
     "sectors": {
-      "retail": "Retail",
-      "salud": "Salud",
-      "logistica": "Logística"
+      "moda": "Moda"
     },
-    "retail-inventario": {
-      "title": "Inventario en tiempo real para retail",
-      "summary": "Reemplazamos hojas de cálculo por un panel de inventario en tiempo real, con alertas de stock bajo y sincronización entre puntos de venta.",
-      "metric": { "label": "Quiebres de stock" }
-    },
-    "salud-agenda": {
-      "title": "Agenda clínica con recordatorios",
-      "summary": "Sistema de citas para un consultorio: agenda en línea, confirmaciones automáticas y recordatorios que reducen las inasistencias.",
-      "metric": { "label": "Inasistencias" }
-    },
-    "logistica-despachos": {
-      "title": "Portal de despachos para logística",
-      "summary": "Portal de seguimiento de despachos con estados en vivo, para que cliente y operador vean el mismo estado de cada envío.",
-      "metric": { "label": "Consultas resueltas" }
+    "atelier-commerce": {
+      "title": "Tienda en línea a la medida",
+      "summary": "Tienda en línea propia con pagos, catálogo y panel de gestión de pedidos y métricas — sin depender de plataformas de terceros."
     }
   },
   "contact": {

@@ -7,6 +7,173 @@ bitácora.
 
 ---
 
+# Entrada 14 — Fase 3, sub-etapa 3.3c-2: expansión apilada y grilla de proyectos
+
+Fecha: 2026-08-03. Fase: 3 — implementación, sub-etapa 3.3c-2.
+Rama: fase3/confianza-expansion (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Segunda mitad de Confianza y **cierre del contenido de la Fase 3**. Alcance
+cerrado igual que en 3.3c-1: **ningún movimiento de avatar** — ni pupilas, ni
+parpadeo, ni mirada errante. `Avatar.tsx` no se tocó; sigue siendo SVG puro y
+estático. La expansión sí es interacción, pero es `grid-template-rows`, no
+animación del asset. **No se tocó** `Hero`, `Services`, `Contact`, `Footer`,
+`components/common/*`, `Avatar.tsx`, `config/{contactChannels,services,team}`
+ni `styles/globals.css`.
+
+## Qué se hizo
+
+**1. Expansión apilada de las tarjetas de socio (DESIGN-SPEC §7, fila #5 de §2).**
+`TeamMemberCard` deja de ser estática. Clic/tap → revela `bio` + chips de
+`stack`, que hasta ahora estaban en `config/team.ts` sin renderizarse.
+
+- **Disparador por clic, no hover**, y explícitamente: el tráfico es
+  mayormente móvil, en táctil el hover no existe (o peor, queda pegado tras
+  el tap). El disparador es un **`<button type="button">` real** que envuelve
+  el bloque colapsado — no un `div` con `onClick`: Enter/Space, rol y foco
+  vienen de fábrica, y el anillo lo pinta el `:focus-visible` global de
+  `globals.css`. `aria-expanded` + `aria-controls` → `id="<socio>-bio-panel"`.
+- **Mecánica exacta del spec**: el panel es `grid` y anima
+  `grid-template-rows: 0fr → 1fr`, **300 ms**, `--ease-signal`
+  (`transition-[grid-template-rows] duration-300 ease-signal`). El contenido
+  va dentro de un hijo con `overflow: hidden`, que es lo que recorta durante
+  la transición. **Ni `height: auto`** (no animable) **ni `max-height`** (el
+  easing se reparte sobre una altura ficticia y llega irregular).
+- **Sin framer-motion.** La transición es CSS pura: no hay estado de animación
+  que gestionar en JS, solo un `useState` booleano por tarjeta. Meter
+  framer-motion aquí habría añadido runtime para reimplementar lo que el
+  navegador ya hace, y habría exigido su propio guard de reduced-motion.
+- **`prefers-reduced-motion: reduce`**: el panel y el chevron llevan
+  `data-expand`, y `globals.css` ya tenía la regla
+  `[data-reveal],[data-expand] { transition-duration: 0ms !important }`
+  (Entrada 11). El toggle pasa a instantáneo; **no se desactiva la función**.
+  Cero CSS nuevo: se reusó el hook que ya existía.
+- **Affordance de estado**: chevron SVG inline que rota 180° según el estado,
+  `--dur-base` / `--ease-standard`. **Va en `--color-accent`** y aquí sí
+  corresponde: es el único elemento clicable de la tarjeta, que es
+  exactamente lo que §1 dice que el acento señaliza. Lleva `aria-hidden`
+  porque el estado ya lo comunica `aria-expanded`.
+- **`inert` en el panel cerrado.** El contenido colapsado **sí está en el
+  HTML** (es la condición para que la apertura sea animable), pero un panel a
+  0fr es invisible y aun así lo leería un lector de pantalla. `inert={!expanded}`
+  lo saca del árbol de accesibilidad y del orden de tabulación mientras está
+  cerrado. React 19.2 lo soporta como booleano nativo.
+- **Chips de `stack`**: misma familia visual que los del stack tecnológico de
+  Servicios (pill, `bg-surface-raised`, borde de token) **pero sin el
+  `hover:border-accent hover:text-accent`**. Desviación deliberada de la
+  instrucción, misma lógica que la corrección del punto 3: los chips no son
+  clicables. Revertir es copiar las dos clases del chip de Servicios.
+  Van en `<ul>/<li>`: es una lista, no prosa.
+- **Layout**: se quitó el `space-y-4` del contenedor de la tarjeta. Un panel
+  colapsado sigue siendo una caja (de altura 0) y el gap del stack le dejaba
+  **16 px de hueco muerto al pie de la tarjeta cerrada**. El espaciado se
+  movió dentro de cada bloque (`pt-4` en el contenido expandido).
+
+**2. Foto opcional: preparada, inactiva (Tarea 1b).** Si `member.photo` existe
+se renderiza con `next/image` — `loading="lazy"`, `priority={false}`,
+dimensiones del propio `photo` (320×400), `placeholder="blur"` con su
+`blurDataURL` — y **solo con la tarjeta abierta** (`expanded && member.photo`):
+`lazy` no bastaba, porque dentro del panel colapsado el `<img>` igual entra al
+DOM. **Hoy `photo` es `undefined` para los dos socios**, así que no se monta
+nada. Sin foto **no se repite el avatar en grande**: ya está arriba a tamaño
+legible (80–96 px) y duplicarlo solo empujaría la bio hacia abajo sin aportar
+información. La sección funciona sin sesión de fotos, que es el caso real.
+
+**3. Grilla de proyectos con el caso real.** `config/projects.ts` no tenía
+consumidor: existía desde 3.3a con **tres placeholder ficticios** (retail /
+salud / logística, con métricas inventadas tipo "−40%"). Se eliminaron los
+tres y queda **un solo proyecto real**: `atelier-commerce` (moda, 2025, Next.js
+· TypeScript · Stripe · PostgreSQL · Prisma, `href` a
+`atelier-commerce.vercel.app`). Sin `metric` y sin `image` — y la tarjeta **no
+pinta nada** cuando faltan: ni label vacío, ni guion, ni espacio reservado.
+
+- **Ubicación: antes de Valores**, después de las tarjetas de socio. Orden de
+  lectura: quién somos → qué hemos hecho → cómo trabajamos. La prueba concreta
+  pesa más que la declaración de principios, así que se lee primero.
+- **Caso de un solo elemento.** Una tarjeta suelta en una fila de tres huecos
+  se ve rota. Se resolvió con el **mismo recurso que Contact usa para el canal
+  único** (`md:only:*`, Entrada 12): con un solo hijo, la tarjeta pasa a
+  `col-span-full`, `max-w-xl` y `justify-self-center`; con dos o más, la regla
+  `:only-child` no aplica y vuelve la grilla `md:2 / lg:3` normal. **Cero
+  ramas en JS**: es CSS condicional, no `projects.length === 1`.
+- El bloque **entero** (encabezado incluido) está bajo `projects.length > 0`:
+  si el array se vacía no queda un `SectionTitle` "Proyectos" huérfano.
+- Sector + año en mono (`text-eyebrow`, §8), como el resto de labels/metadatos.
+  Enlace "Ver proyecto" en acento, `target="_blank" rel="noopener noreferrer"`
+  — único elemento accionable de la tarjeta, único en acento.
+
+**4. Corrección heredada: hover de Valores.** `hover:border-accent` →
+`hover:border-border-strong`. Cierra la **objeción abierta de la Entrada 13**:
+el acento es el señalizador de "esto se puede tocar" (§1) y las tarjetas de
+Valores no lo son, igual que se decidió en Servicios (Entrada 12).
+
+**5. Claves i18n.** Se eliminaron de ambos locales las de los tres placeholder
+(`projects.{retail-inventario,salud-agenda,logistica-despachos}.*`, incluidas
+sus `metric.label`) y los sectores muertos (`retail`, `salud`, `logistica`).
+Nuevas: `projects.title` (Proyectos / Projects), `projects.viewProject` (Ver
+proyecto / View project), `projects.sectors.moda` (Moda / Fashion) y
+`projects.atelier-commerce.{title,summary}`. El EN no es traducción literal:
+"A brand's own online store… with no third-party platform in the middle".
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at "i18n.localeDetection"`:
+  **sigue igual** (preexistente). **Ninguna advertencia nueva.** (La de
+  `baseline-browser-mapping` también es preexistente y ajena al cambio.)
+- Proyecto real en el HTML: `Tienda en línea a la medida` → 1 en `es.html`;
+  `Custom online store` → 1 en `en.html`. `href` de Atelier Commerce presente.
+- Placeholder erradicados:
+  `grep -oE 'retail-inventario|salud-agenda|logistica-despachos'` sobre ambos
+  HTML → **sin resultados**; tampoco `Inventario en tiempo real`,
+  `Agenda clínica`, `Portal de despachos` ni sus equivalentes EN.
+- Bio en el DOM (antes solo estaba en el payload): `Físico de formación` y
+  `Matemático de formación` → 2 ocurrencias cada una en `es.html` (1 DOM +
+  1 `__NEXT_DATA__`). Chips de stack: `framer-motion` y `FastAPI` → 1 cada uno
+  (solo DOM; el stack no pasa por i18n, no viaja en el payload).
+- Expansión: `aria-expanded="false"` → 3 en `es.html` (2 tarjetas de socio +
+  el botón de menú móvil, preexistente); `aria-controls="luis-bio-panel"` y
+  `"david-bio-panel"` → 1 cada uno; `grid-rows-[0fr]` → 2;
+  `transition-[grid-template-rows]` → 2; `inert=""` → 2.
+- CSS emitido (que las clases arbitrarias existan, no solo el markup):
+  `grid-template-rows:0fr`, `grid-template-rows:1fr`,
+  `transition-property:grid-template-rows` y `cubic-bezier(.16,1,.3,1)`
+  (`--ease-signal`) presentes; 6 reglas `:only-child` (4 de Contact + las de
+  la grilla de proyectos).
+- Claves crudas: `grep -oE 'projects\.(title|viewProject|sectors\.[a-z]+|atelier-commerce\.[a-z]+)|team\.members\.[a-z]+\.bio'`
+  sobre ambos HTML → **sin resultados**.
+- `hover:border-accent` restante en `es.html`: 14, **todas** del chip del stack
+  tecnológico de Servicios (14 tecnologías, fuera de alcance). Las 3 tarjetas
+  de Valores ya emiten `hover:border-border-strong`.
+- **`git diff package.json package-lock.json` vacío. Cero dependencias nuevas.**
+
+## Pendientes
+- **Avatares**: los SVG siguen siendo el **placeholder geométrico** de 3.3c-1.
+  Pendiente el **asset ilustrado vía Claude Design** antes de 3.4 — conviene
+  que el asset definitivo entre *antes* de animarlo, no después.
+- **3.4**: movimiento de los avatares — pupilas (seguimiento en desktop,
+  mirada errante en táctil), parpadeo 4–7 s, reacción al tap — más **spotlight
+  de dos niveles y atmósfera de fondo**. El asset ya expone `g.pupil` por ojo.
+- **3.5**: retiro de Neon Sunset (tokens de `globals.css`), **alias legacy** de
+  `Section`/`Card`/`Button` —siguen sin un solo consumidor— y el **scrollbar**
+  (`::-webkit-scrollbar-thumb`, aún en gradiente morado/rosa).
+- Copy de **Servicios sigue siendo el de Fase 0** (`services.title` "Nuestros
+  Servicios" / `services.subtitle` "Soluciones completas para tu negocio"),
+  pendiente heredado de la Entrada 12.
+- Claves i18n `team.roles.engineer` y `team.roles.statistician`: **sin
+  consumidor** desde 3.3c-1. Si no entra un tercer integrante, van en 3.5.
+- `hover:border-accent` en los chips del stack de **Servicios**: mismo criterio
+  que se corrigió en Valores (chips no clicables). No se tocó por estar fuera
+  de alcance; queda anotado para 3.5.
+- Animación de aparición-al-scroll del nav: sigue abierta (Entrada 10).
+
+## Archivos tocados
+`components/sections/TeamMemberCard.tsx`, `components/sections/Team.tsx`,
+`config/projects.ts`, `public/locales/es/common.json`,
+`public/locales/en/common.json`, esta entrada.
+
+---
+
 # Entrada 13 — Fase 3, sub-etapa 3.3c-1: Confianza con los socios reales y avatar SVG estático
 
 Fecha: 2026-08-03. Fase: 3 — implementación, sub-etapa 3.3c-1.

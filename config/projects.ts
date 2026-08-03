@@ -1,11 +1,10 @@
 // Casos/proyectos de la sección de Confianza. Mismo patrón que
 // config/contactChannels.tsx y config/team.ts: interface exportada + array
 // exportado. Agregar un caso = añadir UN objeto a `projects`; el layout no
-// cambia.
+// cambia (la grilla centra el caso único y crece sola con varios).
 //
-// PLACEHDER: los tres casos de abajo son de relleno realista. Los casos
-// REALES están pendientes de curaduría con David (ver BITACORA). Anexarlos
-// es agregar objetos a este array, sin tocar el componente ni el layout.
+// Los tres placeholder de relleno (retail/salud/logística) se eliminaron en
+// 3.3c-2: aquí solo van casos REALES y verificables.
 //
 // i18n — todo campo de texto visible guarda CLAVES de i18n (mismo criterio
 // que team.ts). Traducciones en public/locales/{es,en}/common.json:
@@ -18,7 +17,7 @@
 
 export interface Project {
   id: string;
-  sector: string;          // clave sufijo de `projects.sectors` ('retail' | 'salud' | 'logistica')
+  sector: string;          // clave sufijo de `projects.sectors` ('moda')
   year: number;            // número — no traducible
   title: string;           // clave i18n
   summary: string;         // clave i18n
@@ -38,30 +37,14 @@ export interface Project {
 
 export const projects: Project[] = [
   {
-    id: 'retail-inventario',
-    sector: 'retail',
+    id: 'atelier-commerce',
+    sector: 'moda',
     year: 2025,
-    title: 'projects.retail-inventario.title',
-    summary: 'projects.retail-inventario.summary',
-    tags: ['Inventario', 'Next.js', 'PostgreSQL', 'Tiempo real'],
-    metric: { label: 'projects.retail-inventario.metric.label', value: '−40%' },
-  },
-  {
-    id: 'salud-agenda',
-    sector: 'salud',
-    year: 2025,
-    title: 'projects.salud-agenda.title',
-    summary: 'projects.salud-agenda.summary',
-    tags: ['Agenda clínica', 'React', 'FastAPI', 'Recordatorios'],
-    metric: { label: 'projects.salud-agenda.metric.label', value: '−60%' },
-  },
-  {
-    id: 'logistica-despachos',
-    sector: 'logistica',
-    year: 2024,
-    title: 'projects.logistica-despachos.title',
-    summary: 'projects.logistica-despachos.summary',
-    tags: ['Portal despachos', 'Next.js', 'Docker', 'Tracking'],
-    metric: { label: 'projects.logistica-despachos.metric.label', value: '3×' },
+    title: 'projects.atelier-commerce.title',
+    summary: 'projects.atelier-commerce.summary',
+    tags: ['Next.js', 'TypeScript', 'Stripe', 'PostgreSQL', 'Prisma'],
+    href: 'https://atelier-commerce.vercel.app/',
+    // Sin `metric` ni `image` por ahora: la tarjeta no reserva espacio para
+    // lo que falta — si no hay métrica, no se pinta nada.
   },
 ];

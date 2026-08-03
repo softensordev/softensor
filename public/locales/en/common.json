@@ -77,25 +77,14 @@
     }
   },
   "projects": {
+    "title": "Projects",
+    "viewProject": "View project",
     "sectors": {
-      "retail": "Retail",
-      "salud": "Healthcare",
-      "logistica": "Logistics"
+      "moda": "Fashion"
     },
-    "retail-inventario": {
-      "title": "Real-time inventory for retail",
-      "summary": "We replaced spreadsheets with a real-time inventory dashboard, with low-stock alerts and sync across points of sale.",
-      "metric": { "label": "Stockouts" }
-    },
-    "salud-agenda": {
-      "title": "Clinic scheduling with reminders",
-      "summary": "A booking system for a medical practice: online scheduling, automatic confirmations and reminders that cut no-shows.",
-      "metric": { "label": "No-shows" }
-    },
-    "logistica-despachos": {
-      "title": "Dispatch portal for logistics",
-      "summary": "A shipment-tracking portal with live statuses, so customer and operator see the same state for every delivery.",
-      "metric": { "label": "Queries resolved" }
+    "atelier-commerce": {
+      "title": "Custom online store",
+      "summary": "A brand's own online store with payments, catalog, and an admin panel for orders and metrics — with no third-party platform in the middle."
     }
   },
   "contact": {
