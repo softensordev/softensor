@@ -7,6 +7,170 @@ bitácora.
 
 ---
 
+# Entrada 13 — Fase 3, sub-etapa 3.3c-1: Confianza con los socios reales y avatar SVG estático
+
+Fecha: 2026-08-03. Fase: 3 — implementación, sub-etapa 3.3c-1.
+Rama: fase3/confianza-socios (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Primera mitad de la reescritura estructural de Confianza. **Alcance cerrado a
+propósito**: esta etapa NO trae la expansión apilada, NO trae la grilla de
+proyectos y **NO trae ningún movimiento del avatar** — ni seguimiento de
+cursor, ni parpadeo, ni mirada errante. El avatar es SVG puro y estático.
+**No se tocó** `Hero`, `Services`, `Contact`, `Footer`, `components/common/*`,
+`config/{contactChannels,services,projects}` ni `styles/globals.css`.
+
+## Qué se hizo
+
+**1. Muere el equipo ficticio de Fase 0.** `Team.tsx` tenía hardcodeados cuatro
+"Team Member 1-4" con roles physicist/mathematician/engineer/statistician. Se
+eliminaron: la sección ahora hace `team.map(...)` sobre `config/team.ts`, con
+los **dos socios reales** (Luis, David). Añadir un integrante vuelve a ser
+añadir un objeto al config, sin tocar JSX. `Section background="gradient"`
+(alias legacy) → `"default"`.
+
+**2. `TeamMemberCard` reescrito para la interfaz nueva.** La tarjeta colapsada
+muestra avatar + nombre + disciplina + rol + tagline, sin interacción. Jerarquía
+tipográfica: nombre `text-text` bold, disciplina `text-text-muted`, rol
+`text-text-subtle`, tagline `text-text-muted`. `Card variant="gradient"` →
+variante `default` (superficie + borde de token). Se fue el avatar de emoji
+(⚛️ ∑ ⚙️ 📈) sobre gradiente Neon y el mapa de color por rol.
+**`bio` y `stack` NO se renderizan todavía**: son contenido de la expansión
+(DESIGN-SPEC §7), o sea 3.3c-2. Verificado en el HTML emitido: los stacks
+personales (`FastAPI`, `framer-motion`) no aparecen ni en el DOM ni en el
+payload.
+
+**3. Avatar SVG estático, `components/sections/Avatar.tsx` (nuevo).**
+`viewBox="0 0 120 120"`, placeholder geométrico según §5, con las capas
+separadas en grupos aunque hoy ninguna se anime: `bg` (fondo + hombros),
+`face`, `hair`, `brows`, `eyes` — con **un `g.pupil` por ojo** —, `mouth`.
+`accessory` se omitió (§5 lo marca opcional). **Sin framer-motion, sin
+listeners, sin timers**: SVG puro, en el HTML estático, no depende de JS. Las
+pupilas van centradas y **sin `transform`**, listas para que 3.4 las envuelva
+sin rediseñar el asset. Peso real medido sobre el HTML emitido: **1.597 B
+(Luis) / 1.605 B (David)**, bajo el objetivo de ~3KB de la spec.
+
+**Desviación deliberada de la notación de §5: los ids van prefijados.** La spec
+escribe las capas como `g#bg`, `g#eyes`, etc., pero la página monta **dos**
+avatares: `id="eyes"` repetido sería HTML inválido y haría que cualquier
+`querySelector` de 3.4 encontrara solo el primer avatar. Los ids se emiten como
+`luis-eyes` / `david-eyes` (prefijo = `member.id`), y **el nombre de capa que
+pide el spec va además en `className`**, que sí puede repetirse — `g.pupil` es
+literalmente eso. Lo mismo con el `clipPath` (`luis-avatar-clip`). Verificado:
+14 ids de capa en `es.html`, **cero duplicados**.
+
+**4. Variantes por token, no por SVG duplicado.** El componente recibe
+`avatar: { skin, hair, accent }` de `config/team.ts` y pinta con esos valores.
+Un solo asset para los dos socios. **El acento del integrante se usa solo
+decorativo y a baja opacidad** (anillo al 35%, hombros al 30%): el de Luis es
+`--color-accent`, el señalizador de acción de §1, y pintarle la cara con él a
+plena opacidad degradaría ese señalizador. La boca va en `--color-text-subtle`
+por el mismo motivo.
+
+**5. Valores migrado a Señal.** `bg-sunset-dark/50 border-neon-purple
+hover:border-neon-cyan` → `bg-surface border-border hover:border-accent`;
+títulos `text-neon-cyan` → `text-text`; cuerpo `text-gray-300` →
+`text-text-muted`. El copy i18n de `values.*` **no cambió**.
+
+Dos ajustes de layout que no venían en la instrucción, señalados para que Luis
+los revierta si no los quiere (una línea cada uno):
+- Las tarjetas de Valores pasaron de **centradas a alineadas a la izquierda**,
+  por coherencia con la decisión de retícula suiza de la Entrada 12 (§5 de esa
+  entrada, tarjetas de Servicios).
+- Los `mt-24 md:mt-32` / `gap-*-10` heredados se bajaron a `mt-20 md:mt-24` /
+  `gap-8`, la escala que usan Servicios y Contacto tras 3.3b.
+
+**Objeción abierta sobre el hover de Valores.** La instrucción pedía
+explícitamente `hover:border-accent` y así quedó, pero **contradice el criterio
+de la Entrada 12**: en Servicios se decidió NO usar acento en tarjetas no
+clicables precisamente porque el acento es el señalizador de "esto se puede
+tocar". Las tarjetas de Valores tampoco son clicables. Queda como decisión del
+arquitecto; si se revierte, es cambiar `hover:border-accent` por
+`hover:border-border-strong` en `Team.tsx`.
+
+**6. Copy de Confianza.** `team.subtitle` ES → "Dos socios full-stack. Nos
+encargamos de todo el proceso, sin intermediarios: hablas con quien construye."
+EN → "Two full-stack partners. We handle the whole process, no middlemen: you
+talk straight to the people who build it." (equivalencia natural, no traducción
+literal). **`team.title` sí se cambió**: era el genérico de Fase 0 ("Nuestro
+Equipo" / "Our Team") y pasa al copy aprobado en DESIGN-SPEC §10, "Un
+matemático y un físico construyendo software." / "A mathematician and a
+physicist building software." — que es justo lo que la disciplina de cada
+tarjeta sostiene abajo. **Se actualizó DESIGN-SPEC §10**, que seguía con la
+versión "del brief al deploy" (pendiente que la Entrada 12 dejaba anotado).
+
+**7. `portfolioUrl?` en `config/team.ts`.** Campo opcional, no traducible.
+**Queda `undefined` para ambos socios**: la tarjeta no renderiza nada si falta
+(ni enlace deshabilitado ni espacio reservado). Clave i18n nueva
+`team.viewPortfolio` (ES "Ver portafolio" / EN "View portfolio").
+
+**8. `types/team.ts` eliminado.** Contenía la interfaz vieja (`role` como enum
+de 4 valores, `specialties`, `id: number`) y una interfaz `Technology` que
+**no usaba nadie**. Se fue con el archivo; `types/` quedó vacío y también se
+eliminó. Cero referencias restantes a `@/types/team`.
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at "i18n.localeDetection"`:
+  **sigue igual** (preexistente). **Ninguna advertencia nueva.**
+- Socios en el HTML: `Team Member` → **0 ocurrencias** en `es.html` y `en.html`;
+  `>Luis<` y `>David<` → 1 cada uno.
+- Subtítulo por idioma renderizado completo en ambos HTML. `grep -c brief` →
+  **0** en los dos.
+- Disciplina traducida vía `team.roles`: `es.html` → `>Matemático<`, `>Físico<`;
+  `en.html` → `>Mathematician<`, `>Physicist<`.
+- Avatar en el HTML **estático** (`.next/server/pages/es.html`, o sea SSR, no
+  hidratación): 2 × `viewBox="0 0 120 120"`, `id="luis-eyes"`, `id="david-eyes"`,
+  4 × `class="pupil"` (dos por avatar). `grep -c framer-motion` sobre el HTML → 0.
+- Claves crudas: `grep -oE 'team\.(title|subtitle|viewPortfolio|founderRole|roles\.[a-z]+|members\.[a-z]+\.[a-z]+)|values\.[a-zA-Z]+\.[a-z]+'`
+  sobre ambos HTML → **sin resultados**.
+- `Ver portafolio` / `View portfolio`: **0 en el DOM**, 1 en `__NEXT_DATA__`
+  (next-i18next embarca el namespace completo; es el comportamiento normal, no
+  renderizado). Igual la `bio`: 0 en DOM, 1 en payload.
+- Clases legacy en los archivos tocados (`neon-*`, `sunset-*`, `text-gray-*`,
+  `text-white`, `variant="gradient"|"neon"`, `background="gradient"`): **cero**.
+- `types/team.ts` no existe; `grep -rn '@/types/team\|Technology' components/
+  pages/ config/` → sin resultados.
+- **`git diff package.json package-lock.json` vacío. Cero dependencias nuevas.**
+
+## Estado de la migración a Señal
+Clases legacy (`neon-*`, `sunset-*`, `text-gray-300`, `text-white`) en el código
+fuente: **ya no queda ninguna**. Solo sobreviven los tokens de
+`styles/globals.css` y el `::-webkit-scrollbar-thumb` (ambos, 3.5). Con Team
+migrado, **todos los alias legacy de `Section` y `Card`
+(`background="gradient"|"dark"`, `variant="neon"|"gradient"`) quedan sin un
+solo consumidor** y pueden borrarse en 3.5.
+
+## Pendientes
+- **3.3c-2**: expansión apilada de las tarjetas de socio (DESIGN-SPEC §7:
+  `grid-template-rows` 0fr→1fr, traseras con `translateY + scale`, bio + stack
+  + foto opcional) y **grilla de proyectos**, con el proyecto real
+  **"Atelier Commerce"** ya definido.
+- **3.4**: movimiento de los avatares — pupilas (seguimiento en desktop, mirada
+  errante en táctil), parpadeo 4–7 s, reacción al tap — más spotlight de dos
+  niveles y atmósfera de fondo. El asset de esta etapa ya expone `g.pupil` por
+  ojo; 3.4 no debería tener que rediseñarlo.
+- **3.5**: retiro de Neon Sunset (tokens de `globals.css`), alias legacy de
+  `Section`/`Card`/`Button` —ahora ya sin consumidores— y el **scrollbar**.
+- Copy de Servicios **sigue siendo el de Fase 0** (`services.title` "Nuestros
+  Servicios" / `services.subtitle` "Soluciones completas para tu negocio"),
+  pendiente heredado de la Entrada 12.
+- Claves i18n `team.roles.engineer` y `team.roles.statistician` quedan **sin
+  consumidor** (eran del equipo ficticio). No se borraron por si entra un
+  tercer integrante; si no, van en la limpieza de 3.5.
+- Animación de aparición-al-scroll del nav: sigue abierta (material en la
+  Entrada 10).
+
+## Archivos tocados
+`components/sections/Avatar.tsx` (nuevo), `components/sections/Team.tsx`,
+`components/sections/TeamMemberCard.tsx`, `config/team.ts`,
+`public/locales/es/common.json`, `public/locales/en/common.json`,
+`types/team.ts` (**eliminado**, y con él el directorio `types/`),
+`docs-claude/DESIGN-SPEC.md` (§10), esta entrada.
+
+---
+
 # Entrada 12 — Fase 3, sub-etapa 3.3b: rediseño de Servicios y Contacto
 
 Fecha: 2026-08-01. Fase: 3 — implementación, sub-etapa 3.3b.

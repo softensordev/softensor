@@ -32,6 +32,11 @@ export interface TeamMember {
     hair: string;
     accent: string;
   };
+  portfolioUrl?: string;   // OPCIONAL — portafolio personal, no traducible.
+                           // Si está undefined/vacío, la tarjeta NO renderiza
+                           // el enlace "Ver portafolio" (nada, ni deshabilitado).
+                           // Cuando exista, abre en pestaña nueva
+                           // (target="_blank" rel="noopener noreferrer").
 }
 
 // Sin `photo` por ahora: la landing debe poder salir a producción sin sesión

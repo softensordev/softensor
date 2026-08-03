@@ -40,9 +40,10 @@
     }
   },
   "team": {
-    "title": "Nuestro Equipo",
-    "subtitle": "Expertos en desarrollo de software",
+    "title": "Un matemático y un físico construyendo software.",
+    "subtitle": "Dos socios full-stack. Nos encargamos de todo el proceso, sin intermediarios: hablas con quien construye.",
     "founderRole": "Cofundador · Full-stack",
+    "viewPortfolio": "Ver portafolio",
     "roles": {
       "physicist": "Físico",
       "mathematician": "Matemático",
