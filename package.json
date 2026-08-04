@@ -16,6 +16,7 @@
     "autoprefixer": "^10.4.22",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.6",
+    "framer-motion": "^12.43.0",
     "i18next": "^25.6.3",
     "next": "16.0.10",
     "next-i18next": "^15.4.2",
