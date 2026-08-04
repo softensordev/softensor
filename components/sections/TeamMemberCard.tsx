@@ -50,10 +50,15 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({ member }) => {
           className="block w-full text-left cursor-pointer"
         >
           <div className="space-y-4">
+            {/* `expanded` baja al avatar para la reacción al tap de §6: al
+                abrirse la tarjeta, la mirada se orienta hacia el contenido que
+                se despliega. Es un prop, no un listener nuevo — la tarjeta ya
+                era la dueña de este estado. */}
             <Avatar
               avatar={member.avatar}
               uid={member.id}
               className="w-20 h-20 md:w-24 md:h-24"
+              expanded={expanded}
             />
 
             <div className="flex items-start justify-between gap-4">

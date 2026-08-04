@@ -1,10 +1,9 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { TeamMember } from '../../config/team';
+import { useAvatarEyes, type AvatarEyeMotion } from '../../hooks/useAvatarEyes';
 
-// Avatar SVG de los socios (DESIGN-SPEC §5).
-//
-// ESTA ETAPA (3.3c-3): SVG 100% ESTÁTICO. Sin framer-motion, sin listeners,
-// sin timers. Se renderiza en el HTML estático; no depende de JS (SSR-friendly).
+// Avatar SVG de los socios (DESIGN-SPEC §5 y §6).
 //
 // ESTADO TRANSITORIO DELIBERADO: hay DOS assets conviviendo.
 //   - Luis  → ilustración real (diseñada en Claude Design), integrada aquí.
@@ -13,17 +12,44 @@ import { TeamMember } from '../../config/team';
 // el geométrico como fallback. Añadir el avatar de David = añadir su SVG y una
 // entrada al mapa. No hay que reescribir nada.
 //
-// Las capas están separadas en grupos A PROPÓSITO aunque hoy ninguna se anime:
-// bg / hair / face / brows / eyes (con un `g.pupil` POR OJO) / mouth. La
-// sub-etapa 3.4 le añadirá a `g.pupil` seguimiento de cursor, mirada errante y
-// parpadeo vía `transform` con framer-motion (§6). Por eso las pupilas son
-// grupos propios y no `<circle>` sueltos: 3.4 solo tiene que envolverlos, no
-// rediseñar el asset. En reposo van centradas, sin `transform`.
+// ESTA ETAPA (3.4a): los ojos cobran movimiento. El resto del SVG sigue siendo
+// estático y se renderiza igual en el HTML del servidor.
+//
+// DÓNDE VIVE EL MOVIMIENTO, Y POR QUÉ AQUÍ
+// El estado y los efectos viven en `hooks/useAvatarEyes.ts`, y `Avatar` —que
+// hasta ahora era un despachador puro— es el ÚNICO que llama al hook. Los
+// assets (`IllustratedLuis`, `GeometricAvatar`) siguen siendo presentacionales:
+// solo reciben estilos ya calculados y se los cuelgan a sus `motion.g`.
+// Las tres alternativas y por qué se descartaron:
+//   - Movimiento dentro de cada asset: duplicaría timers y springs por asset y
+//     obligaría a reimplementarlo en el avatar de David cuando llegue.
+//   - Wrapper `<AnimatedAvatar>` alrededor del `<svg>`: no sirve. Lo que hay
+//     que animar son nodos INTERNOS del SVG (`g#eyes`, `g.pupil`); un wrapper
+//     externo no los alcanza sin `querySelector`, que es justo lo que un
+//     componente de React no debe hacer.
+//   - Sub-componente `<AnimatedPupils>` que renderice los ojos: tendría que
+//     conocer la geometría de CADA asset (los ojos de Luis y los del
+//     placeholder están en coordenadas distintas), o recibirla por props. Es el
+//     mismo acoplamiento, con un componente más.
+// Un hook en `Avatar` + estilos por props cumple lo que se pedía: (a) el
+// placeholder de David hereda el movimiento sin tocarlo —sus `g.pupil` ya
+// existen—, (b) el SSR no cambia (ver abajo), (c) `TeamMemberCard` solo tiene
+// que pasar `expanded`.
+//
+// SSR: `motion.g` con MotionValues en su valor por defecto (x=0, y=0, scaleY=1)
+// emite `transform: none`. El HTML estático sale con las pupilas centradas y
+// sin transform real, igual que antes de esta etapa, y el primer render de
+// cliente es idéntico (el modo de movimiento se resuelve en un efecto) → no hay
+// salto visual ni mismatch de hidratación.
+//
+// Las capas siguen separadas en grupos: bg / hair / face / brows / eyes (con un
+// `g.pupil` POR OJO) / mouth. Solo `g#eyes` se anima en esta fase (§5); el
+// resto está separado para poder animarlo cuando toque, sin rediseñar el SVG.
 //
 // Los ids se prefijan con `uid` (el id del socio) porque la página monta dos
-// avatares: `id="eyes"` duplicado sería HTML inválido y rompería cualquier
-// `querySelector` de 3.4. El nombre de capa que exige el spec va además en
-// `className`, que sí puede repetirse (`g.pupil` es literalmente eso).
+// avatares: `id="eyes"` duplicado sería HTML inválido. El nombre de capa que
+// exige el spec va además en `className`, que sí puede repetirse (`g.pupil` es
+// literalmente eso).
 
 interface AvatarProps {
   /** Tokens de color del integrante (`config/team.ts` → `avatar`). */
@@ -31,12 +57,24 @@ interface AvatarProps {
   /** Prefijo único de ids dentro del documento; se usa `member.id`. */
   uid: string;
   className?: string;
+  /**
+   * Estado de la tarjeta contenedora. Dispara la reacción al tap de §6: al
+   * expandirse, la mirada baja hacia el contenido que se despliega.
+   * Opcional para que el avatar siga sirviendo fuera de una tarjeta.
+   */
+  expanded?: boolean;
 }
 
-/** Contrato que cumple cada asset concreto. Idéntico al público a propósito. */
-type AvatarShape = React.FC<Required<Pick<AvatarProps, 'avatar' | 'uid'>> & {
-  className: string;
-}>;
+/**
+ * Contrato que cumple cada asset concreto: los props públicos de identidad más
+ * los estilos animados que `Avatar` ya calculó. El asset no sabe de dónde salen
+ * ni si hay movimiento montado — solo los aplica.
+ */
+type AvatarShape = React.FC<
+  Required<Pick<AvatarProps, 'avatar' | 'uid'>> & {
+    className: string;
+  } & AvatarEyeMotion
+>;
 
 // Los colores viajan como CUSTOM PROPERTIES, no como atributos `fill`.
 //
@@ -57,14 +95,11 @@ const colorVars = (avatar: AvatarProps['avatar']): React.CSSProperties =>
     '--avatar-accent': avatar.accent,
   }) as React.CSSProperties;
 
-// Reposo de las pupilas y del bloque de ojos. `transform-box: fill-box` +
-// `transform-origin: center` vienen del diseño y son REQUISITO de 3.4: sin
-// ellos, un `transform` de framer-motion se referiría al origen del viewBox y
-// las pupilas saldrían disparadas fuera de la cara. No quitar.
-const fillBox: React.CSSProperties = {
-  transformBox: 'fill-box',
-  transformOrigin: 'center',
-};
+// `transform-box: fill-box` + `transform-origin: center` ya NO se declaran aquí:
+// los trae `eyesStyle`/`pupilStyle` desde `useAvatarEyes`, junto al transform que
+// los necesita. Siguen siendo requisito —sin `fill-box` el `translate` se
+// referiría al origen del viewBox y las pupilas saldrían de la cara—, solo que
+// ahora viven pegados a su motivo.
 
 // ---------------------------------------------------------------------------
 // Luis — ilustración real (Claude Design). Reemplaza al placeholder geométrico.
@@ -73,8 +108,16 @@ const fillBox: React.CSSProperties = {
 // `role="img"` y `aria-label="Avatar socio 1"`; se retiran a propósito porque en
 // la tarjeta el nombre del socio ya está en texto y el avatar no aporta
 // información nueva — anunciarlo sería ruido duplicado para un lector.
-const IllustratedLuis: AvatarShape = ({ avatar, uid, className }) => (
+const IllustratedLuis: AvatarShape = ({
+  avatar,
+  uid,
+  className,
+  svgRef,
+  eyesStyle,
+  pupilStyle,
+}) => (
   <svg
+    ref={svgRef}
     viewBox="0 0 120 120"
     className={className}
     style={colorVars(avatar)}
@@ -142,21 +185,24 @@ const IllustratedLuis: AvatarShape = ({ avatar, uid, className }) => (
       <path d="M64,51 Q71,48 78,51 L78,53 Q71,50.5 64,53 Z" />
     </g>
 
-    {/* Un `g.pupil` por ojo (§5), centrado y sin transform: 3.4 los mueve. */}
-    <g id={`${uid}-eyes`} className="eyes" style={fillBox}>
+    {/* Un `g.pupil` por ojo (§5). El blanco del ojo NO se mueve; las pupilas
+        se desplazan dentro de él en el rango ±2.5 del viewBox, que con
+        `rx=6`/`r=3.1` las mantiene siempre dentro de la esclerótica.
+        Las dos comparten `pupilStyle` a propósito: ojos conjugados. */}
+    <motion.g id={`${uid}-eyes`} className="eyes" style={eyesStyle}>
       <ellipse cx="49" cy="58" rx="6" ry="4" fill="#f4f3ef" />
       <ellipse cx="71" cy="58" rx="6" ry="4" fill="#f4f3ef" />
-      <g id={`${uid}-pupil-left`} className="pupil" style={fillBox}>
+      <motion.g id={`${uid}-pupil-left`} className="pupil" style={pupilStyle}>
         <circle cx="49" cy="58" r="3.1" fill="#5a3d2b" />
         <circle cx="49" cy="58" r="1.6" fill="#1a1310" />
         <circle cx="50.2" cy="56.9" r="0.8" fill="#ffffff" />
-      </g>
-      <g id={`${uid}-pupil-right`} className="pupil" style={fillBox}>
+      </motion.g>
+      <motion.g id={`${uid}-pupil-right`} className="pupil" style={pupilStyle}>
         <circle cx="71" cy="58" r="3.1" fill="#5a3d2b" />
         <circle cx="71" cy="58" r="1.6" fill="#1a1310" />
         <circle cx="72.2" cy="56.9" r="0.8" fill="#ffffff" />
-      </g>
-    </g>
+      </motion.g>
+    </motion.g>
 
     <g id={`${uid}-mouth`} className="mouth">
       <path
@@ -216,11 +262,19 @@ const IllustratedLuis: AvatarShape = ({ avatar, uid, className }) => (
 // Placeholder geométrico (§5) — el asset por defecto mientras no haya ilustración.
 // Hoy lo usa David. Se conserva TAL CUAL estaba en 3.3c-1.
 // ---------------------------------------------------------------------------
-const GeometricAvatar: AvatarShape = ({ avatar, uid, className }) => {
+const GeometricAvatar: AvatarShape = ({
+  avatar,
+  uid,
+  className,
+  svgRef,
+  eyesStyle,
+  pupilStyle,
+}) => {
   const clipId = `${uid}-avatar-clip`;
 
   return (
     <svg
+      ref={svgRef}
       viewBox="0 0 120 120"
       className={className}
       role="presentation"
@@ -271,17 +325,24 @@ const GeometricAvatar: AvatarShape = ({ avatar, uid, className }) => {
         <rect x="61.5" y="59" width="13" height="2.6" rx="1.3" />
       </g>
 
-      {/* Un `g.pupil` por ojo, centrado y sin transform (3.4 los mueve). */}
-      <g id={`${uid}-eyes`} className="eyes">
+      {/* Un `g.pupil` por ojo. Recibe el MISMO movimiento que la ilustración
+          de Luis sin código propio: esa era la prueba de que el hook vive en
+          `Avatar` y no dentro de cada asset.
+          Dos correcciones de 3.4a sobre lo que había: (1) a estos grupos les
+          faltaba `transform-box: fill-box` —solo lo tenía la ilustración—, sin
+          el cual el `translate` se referiría al origen del viewBox; ahora lo
+          trae `pupilStyle`. (2) llevan id prefijado como el resto de capas: sin
+          él, los dos avatares no eran distinguibles por id. */}
+      <motion.g id={`${uid}-eyes`} className="eyes" style={eyesStyle}>
         <ellipse cx="52" cy="68" rx="6.5" ry="5.5" fill="var(--color-text)" />
         <ellipse cx="68" cy="68" rx="6.5" ry="5.5" fill="var(--color-text)" />
-        <g className="pupil">
+        <motion.g id={`${uid}-pupil-left`} className="pupil" style={pupilStyle}>
           <circle cx="52" cy="68" r="2.8" fill="var(--color-bg)" />
-        </g>
-        <g className="pupil">
+        </motion.g>
+        <motion.g id={`${uid}-pupil-right`} className="pupil" style={pupilStyle}>
           <circle cx="68" cy="68" r="2.8" fill="var(--color-bg)" />
-        </g>
-      </g>
+        </motion.g>
+      </motion.g>
 
       <g id={`${uid}-mouth`} className="mouth">
         <path
@@ -302,10 +363,19 @@ const AVATAR_SHAPES: Record<string, AvatarShape> = {
   luis: IllustratedLuis,
 };
 
-const Avatar: React.FC<AvatarProps> = ({ avatar, uid, className = '' }) => {
+const Avatar: React.FC<AvatarProps> = ({
+  avatar,
+  uid,
+  className = '',
+  expanded = false,
+}) => {
   const Shape = AVATAR_SHAPES[uid] ?? GeometricAvatar;
+  // Una llamada por avatar montado → timers, springs e intervalos propios. Los
+  // dos socios no se sincronizan porque no comparten nada más que el listener
+  // de puntero, que es de solo lectura.
+  const eyeMotion = useAvatarEyes(expanded);
 
-  return <Shape avatar={avatar} uid={uid} className={className} />;
+  return <Shape avatar={avatar} uid={uid} className={className} {...eyeMotion} />;
 };
 
 export default Avatar;
