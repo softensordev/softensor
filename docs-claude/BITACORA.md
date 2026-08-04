@@ -7,6 +7,217 @@ bitácora.
 
 ---
 
+# Entrada 17 — Fase 3, sub-etapa 3.4a: listener de puntero + pupilas
+
+Fecha: 2026-08-04. Fase: 3 — implementación, sub-etapa 3.4a.
+Rama: fase3/movimiento-pupilas (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel. Local:
+`tsc --noEmit` y `next build` verdes, Lighthouse mobile 99 / LCP 2,1 s, y
+verificación de comportamiento en Chrome headless (abajo).
+
+Primer código del proyecto que usa framer-motion. Entra la **primera capa de
+movimiento**: el listener compartido de puntero (§4) y su primer consumidor,
+las pupilas de los avatares (§6). **No** entra el spotlight (§3 → 3.4b) ni la
+atmósfera (→ 3.4c).
+
+## Qué se hizo
+
+**1. `hooks/usePointerTracker.ts` — listener compartido (§4).**
+Un único `pointermove` sobre `window` con `{ passive: true }`. El handler solo
+hace `pointerX.set(e.clientX)` / `pointerY.set(e.clientY)` sobre dos
+MotionValues: **cero `setState` por evento**, cero lectura de layout.
+
+Los MotionValues son **singletons de módulo**, no un Context. Un Provider en
+`_app.tsx` habría dado lo mismo a cambio de obligar a todo consumidor a colgar
+del árbol correcto; el singleton funciona desde cualquier componente. La
+compartición real la garantiza un **refcount**: el listener se crea con el
+primer consumidor y se destruye con el último. Verificado: con los dos avatares
+montados, `addEventListener('pointermove')` se llamó **exactamente 1 vez**.
+El spotlight de 3.4b solo tiene que llamar a `usePointerTracker()` — incrementa
+el refcount y no añade listener. No hay que reescribir nada.
+
+`usePointerMode()` resuelve tres modos vía `matchMedia`: `off` (reduce),
+`pointer` (`hover:hover` + `pointer:fine`), `wander` (el resto). Devuelve `off`
+en el primer render de servidor **y** de cliente a propósito — el modo real
+entra en un efecto, así que el HTML estático no puede desalinearse. Reacciona a
+`change` de ambas media queries, sin recargar.
+
+**2. `hooks/useAvatarEyes.ts` — pupilas, parpadeo y reacción al tap (§6).**
+Un solo par de MotionValues de destino (`targetX`/`targetY`) y un solo par de
+springs. **Todas** las fuentes escriben en el mismo destino, así que el spring
+nunca se recablea al cambiar de modo:
+
+- *Desktop*: se suscribe a los MotionValues del tracker y mapea
+  `(cursor − centro del avatar) / 400 px` al rango, con `clamp(±2.5)`.
+- *Táctil*: mirada errante con **`setTimeout` encadenado** (no `rAF`, no
+  `setInterval`): el intervalo se re-sortea en cada salto (2–4 s), así que dos
+  avatares montados en el mismo frame divergen desde el primer tick.
+- *Parpadeo*: efecto y MotionValue propios (`scaleY` 1→.08→1, 140 ms, timer
+  4–7 s encadenado), independiente de la fuente de posición.
+- *Reacción al tap*: `expanded` baja de `TeamMemberCard` → `Avatar` como prop.
+  Anima el destino a `y = +2.5` en 300 ms con `--ease-signal`. Un flag
+  `holdRef` le da propiedad exclusiva del destino durante esos 300 ms; sin él,
+  en desktop el siguiente `pointermove` pisaría la reacción de inmediato.
+- *`reduce`*: ningún efecto se monta. Ni seguimiento, ni errante, ni parpadeo,
+  ni tap. Todos los cleanups hacen `clearTimeout` + `unsubscribe` + reset a 0.
+
+**`getBoundingClientRect()` NO se llama por evento** — sería exactamente el
+error de performance que §4 quiere evitar. El centro del avatar se cachea y se
+marca sucio con `scroll`/`resize` (ambos `passive`); se recalcula, como mucho,
+en el primer `pointermove` posterior a ese cambio.
+
+**Los easings se LEEN de los tokens, no se redefinen.** framer-motion no acepta
+el string `cubic-bezier(...)`, así que `cssEase()` lee `--ease-signal` /
+`--ease-standard` de `document.documentElement` y parsea los cuatro números.
+**Una lectura por token y por sesión** (cache de módulo), nunca dentro de un
+timer ni de un handler. `styles/globals.css` no se tocó.
+
+**3. Dónde vive el movimiento — la decisión de arquitectura.**
+`Avatar` era un despachador presentacional puro. Ahora es el **único** que
+llama a `useAvatarEyes()`, y pasa los estilos ya calculados a los assets, que
+siguen siendo presentacionales y solo se los cuelgan a sus `motion.g`.
+Descartadas:
+- *Movimiento dentro de cada asset*: duplica timers y springs, y obliga a
+  reimplementarlo en el avatar de David cuando llegue.
+- *Wrapper `<AnimatedAvatar>` sobre el `<svg>`*: no alcanza. Lo que se anima
+  son nodos **internos** (`g#eyes`, `g.pupil`); un wrapper externo solo llega
+  con `querySelector`, que es justo lo que un componente de React no debe hacer.
+- *Sub-componente `<AnimatedPupils>`*: tendría que conocer la geometría de cada
+  asset (los ojos de Luis y los del placeholder están en coordenadas
+  distintas). Mismo acoplamiento, un componente más.
+
+El resultado cumple lo que se pedía: el **placeholder geométrico de David
+hereda el movimiento sin una línea propia** (sus `g.pupil` ya existían), el SSR
+no cambia, y `TeamMemberCard` solo pasa `expanded`.
+
+**Las dos pupilas de un avatar comparten `x`/`y`.** Los ojos humanos son
+conjugados; moverlos por separado lee como estrabismo. §6 pide desincronizar los
+**avatares** entre sí, y eso sale gratis de que cada instancia del hook tenga
+sus propios timers y springs.
+
+## Corrección a lo que se creía del asset
+
+Se asumía que los `g.pupil` de **ambos** avatares ya traían
+`transform-box: fill-box; transform-origin: center`. **Falso**: solo los traía
+la ilustración de Luis. Los del placeholder de David no, y sin `fill-box` el
+`translate` se habría referido al origen del `viewBox` y las pupilas habrían
+salido de la cara. Ahora esas propiedades viajan en `pupilStyle`/`eyesStyle`
+desde el hook, pegadas al `transform` que las necesita, para los dos assets.
+De paso, los `g.pupil` de David reciben id prefijado (`david-pupil-left/right`)
+como el resto de capas; antes no tenían ninguno.
+
+## Verificación
+
+`npx tsc --noEmit` y `npm run build`: **verdes**. Next.js 16.0.10.
+
+**SSR.** Sobre `.next/server/pages/es.html`, los 6 grupos (2 × `g.eyes`,
+4 × `g.pupil`) salen así:
+
+```
+<g id="luis-pupil-left" class="pupil"
+   style="transform-box:fill-box;transform-origin:50% 50%;transform:none">
+```
+
+Pupilas presentes, centradas y con `transform: none` — framer-motion emite
+`none` cuando todos los valores están en su default (x=0, y=0, scaleY=1). El
+primer render de cliente es idéntico (el modo se resuelve en un efecto), así
+que **no hay salto visual ni mismatch de hidratación**: la auditoría
+`errors-in-console` de Lighthouse solo reporta el 404 preexistente de
+`favicon.ico`. `transform-origin: center` sale normalizado a `50% 50%` — es el
+mismo valor.
+
+**Comportamiento, en Chrome headless contra el build de producción.** Headless
+reporta `hover:none, pointer:none`, así que la rama desktop se verificó con un
+init-script que fuerza `(pointer: fine)`; el resto es tal cual:
+
+| Qué | Resultado |
+|---|---|
+| Listeners `pointermove` con 2 avatares montados | **1** (`adds:1, removes:0`) |
+| Seguimiento desktop, cursor en 4 esquinas | pupila sigue la dirección; con el cursor lejos el valor satura **exacto en 2.5** → el clamp aplica |
+| Mapeo, centro del ojo en (161,289), cursor (10,10) | esperado `−151/400×2.5 = −0.944`; medido **−0.944** |
+| Mirada errante (táctil) | 12 y 21 posiciones distintas en 9 s, máx. \|Δ\| 2.35 |
+| Desincronización de los dos avatares | 31/31 muestras con valores distintos |
+| Parpadeo | capturado `scaleY 0.670` a mitad de transición |
+| Reacción al tap | `translateY` sube monótono a **2.478** en ~600 ms |
+| `prefers-reduced-motion: reduce` | `transform: none` en las 37 muestras de 9 s, **incluso tras un tap** |
+| Cambio de `reduce` en vivo, sin recargar | el movimiento cesa y vuelve a `none` |
+
+`useState` aparece **una sola vez** en todo el código nuevo: el modo de
+`usePointerMode`, que solo escribe el handler de `matchMedia`. Ningún
+`setState` en un `pointermove` ni en un timer. Ningún `requestAnimationFrame`
+escrito a mano.
+
+## Bundle — el costo real de usar framer-motion
+
+Misma metodología que la Entrada 16 (chunks referenciados por el HTML
+prerenderizado de `/`). **La línea base se volvió a medir en esta máquina**
+revirtiendo los archivos, para que el delta no arrastre ruido de gzip: da
+450 568 B raw / 142 202 B gzip, ~500 B por encima de lo anotado en la Entrada
+16 (diferencia de nivel de compresión, no de código).
+
+| Métrica | Base (3.4a revertido) | Con 3.4a | Delta |
+|---|---|---|---|
+| First Load JS `/` raw | 450 568 B | 582 756 B | **+132 188 B (+129,1 KB, +29 %)** |
+| First Load JS `/` gzip | 142 202 B | 186 547 B | **+44 345 B (+43,3 KB, +31 %)** |
+| Total `.next/static/chunks` | 489 732 B | 622 001 B | +132 269 B |
+
+**+43,3 KB gzip.** Está dentro de la banda que se había fijado (40–50 KB) pero
+en su borde alto, así que conviene ser explícito sobre de dónde sale. Los
+imports **ya son específicos** (`{ motion, animate, useMotionValue, useSpring,
+motionValue, ... }`, más los `type`), y todo framer-motion cae en un único
+chunk. El peso no es de imports de más: es que **usar cualquier componente
+`motion.*` arrastra la capa de render DOM/SVG completa**, que no es
+tree-shakeable una vez que hay un `motion.g` en el árbol.
+
+Dos cosas que enmarcan el número:
+- Es un **costo único, ya amortizado**. 3.4b (spotlight) y 3.4c (atmósfera)
+  consumen el mismo chunk: su delta marginal será cercano a cero.
+- Si el presupuesto aprieta más adelante, la palanca disponible **sin instalar
+  nada** es `LazyMotion` + `m.*` con las features cargadas por `import()`
+  dinámico. No se hizo ahora porque cambia el contrato de SSR de los componentes
+  y esta etapa quería el camino auditable. **Evaluarlo en 3.5, no antes.**
+
+## Lighthouse
+
+`npm run build && npm start`, Lighthouse 12 vía `npx` efímero (Chrome del
+sistema). **No se instaló nada en el proyecto**; `package.json` no cambió.
+
+| Perfil | Score | LCP | FCP | TBT | CLS | Speed Index |
+|---|---|---|---|---|---|---|
+| **Mobile** (throttling por defecto, CPU ×4) | **99** | **2,1 s** | 0,8 s | 40 ms | 0 | 0,8 s |
+| Desktop | 100 | 0,5 s | — | 0 ms | 0 | — |
+
+Objetivos cumplidos: score ≥80 ✅, LCP <2,5 s ✅. Elemento LCP: el `<h1>` del
+hero. **Salvedad honesta**: es `localhost`, sin latencia de red real; el
+throttling de Lighthouse la simula (RTT 150 ms, 1,6 Mbps, CPU ×4) pero no
+sustituye una medición contra el preview de Vercel. Los 2,1 s dejan **400 ms de
+margen** sobre el objetivo — poco. La medición contra el preview es parte de la
+compuerta de esta etapa, no un extra.
+
+Los 60 fps en Android de gama media **no se midieron**: no hay dispositivo. Lo
+que sí se puede afirmar es estructural — solo se anima `transform` (pupilas por
+`x`/`y`, ojos por `scaleY`), sin layout ni paint, y en táctil no hay listener
+de puntero montado en absoluto.
+
+## Advertencias de build
+
+Sin cambios respecto a la Entrada 16: sigue el warning
+`Invalid literal value, expected false at "i18n.localeDetection"` y el aviso de
+`baseline-browser-mapping`. Ninguno es de esta etapa.
+
+## Pendientes
+
+- **3.4b**: spotlight de dos niveles (§3), **segundo consumidor del mismo
+  listener** — `usePointerTracker()` y ya; no se toca `usePointerTracker.ts`.
+- **3.4c**: atmósfera de fondo.
+- **Avatar de David**: sigue geométrico. Cuando llegue su ilustración, hereda el
+  movimiento sin código nuevo (solo entrada en `AVATAR_SHAPES`).
+- **3.5**: limpieza de la paleta Neon Sunset, `npm audit` de las 11
+  vulnerabilidades preexistentes (1 crítica, 8 altas) y, si el presupuesto de
+  bundle aprieta, evaluación de `LazyMotion`.
+
+---
+
 # Entrada 16 — Fase 3, dependencia: instalación aislada de framer-motion
 
 Fecha: 2026-08-04. Fase: 3 — implementación, paso de dependencia previo a 3.4.
