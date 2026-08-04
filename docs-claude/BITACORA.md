@@ -7,6 +7,66 @@ bitácora.
 
 ---
 
+# Entrada 16 — Fase 3, dependencia: instalación aislada de framer-motion
+
+Fecha: 2026-08-04. Fase: 3 — implementación, paso de dependencia previo a 3.4.
+Rama: fase3/dep-framer-motion (desde develop).
+Estado de compuerta: **CERRADA** (tsc + build verdes, sin cambios de UI).
+
+Paso aislado y auditable: entra `framer-motion@12.43.0` en `dependencies`
+(runtime, no dev). **Ningún componente la usa todavía** — no se tocó ni un
+`.tsx`. El diff es exactamente `package.json` + `package-lock.json`. El primer
+consumidor será **3.4a** (pupilas / spotlight, DESIGN-SPEC §6).
+
+Se usa el paquete `framer-motion`, no `motion`, para no desalinear la
+documentación del proyecto, que lo referencia con ese nombre.
+
+**Sin advertencias de peerDependencies.** framer-motion 12 declara
+`react: ^18.0.0 || ^19.0.0` (y react-dom igual), ambos *optional* en
+`peerDependenciesMeta`; el proyecto tiene React 19.2.0. El tercer peer,
+`@emotion/is-prop-valid`, también es opcional y no se instaló. Arrastra tres
+paquetes nuevos: `framer-motion`, `motion-dom@12.43.0`, `motion-utils@12.39.0`.
+
+## Línea base de bundle (para medir 3.4a)
+
+Medida sobre los chunks que referencia el HTML prerenderizado de `/`
+(`.next/server/pages/en.html`), porque `next build` con Turbopack ya no imprime
+la columna de tamaños:
+
+| Métrica | Antes de instalar | Después de instalar |
+|---|---|---|
+| First Load JS `/` (raw) | 450 137 B (439,6 KB) | 450 138 B (439,6 KB) |
+| First Load JS `/` (gzip) | 141 663 B (138,3 KB) | 141 664 B (138,3 KB) |
+| Total `.next/static/chunks` | 489 731 B | 489 732 B |
+
+**Delta ≈ 0 (1 byte).** Es el resultado esperado: sin `import`, la librería no
+entra al bundle. Ese +1 B viene del bump de Next, no de framer-motion. Grep
+sobre los chunks solo encuentra la cadena `"framer-motion"` dentro del stack de
+Luis en los datos del equipo — dato, no código.
+
+**Todo lo que 3.4a mida por encima de 439,6 KB raw / 138,3 KB gzip es costo
+real del uso**, no de tener la dependencia instalada.
+
+## Corrección al reporte de 3.3c-2
+
+Ese reporte dijo que el lockfile estaba desfasado (build reportaba Next 16.0.6
+con `package.json` pidiendo 16.0.10). **El lockfile estaba bien**: ya resolvía
+16.0.10. Lo desfasado era `node_modules`, congelado en 16.0.6 (`npm ls` lo
+marcaba `invalid`). El `npm install` de framer-motion resincronizó el árbol
+solo, sin tocar la entrada de Next en el lock: el diff del lockfile son 43
+líneas, todas altas de los tres paquetes nuevos, cero borrados. El build ahora
+imprime **Next.js 16.0.10**. No queda nada pendiente de esto para 3.5.
+
+## Pendientes que esta etapa NO toca
+
+- `next.config.js`: sigue el warning `Invalid literal value, expected false at
+  "i18n.localeDetection"` (preexistente, no es de esta etapa).
+- `npm audit` reporta 11 vulnerabilidades (1 crítica, 8 altas) en el árbol
+  transitivo. Preexistente, sin relación con framer-motion. Auditarlo aparte.
+- `baseline-browser-mapping` pide actualización de datos. Ruido de build.
+
+---
+
 # Entrada 15 — Fase 3, sub-etapa 3.3c-3: avatar ilustrado de Luis
 
 Fecha: 2026-08-04. Fase: 3 — implementación, sub-etapa 3.3c-3.
