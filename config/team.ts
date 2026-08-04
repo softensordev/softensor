@@ -50,9 +50,14 @@ export const team: TeamMember[] = [
     tagline: 'team.members.luis.tagline',
     bio: 'team.members.luis.bio',
     stack: ['TypeScript', 'React', 'Next.js', 'Tailwind', 'framer-motion'],
+    // Luis ya tiene AVATAR ILUSTRADO (3.3c-3), no el placeholder geométrico:
+    // estos valores son piel y pelo reales, no tokens grises de la paleta. Un
+    // `var(--color-surface-raised)` como piel funcionaba en una silueta
+    // abstracta; en una cara pintaría un rostro gris. `accent` sí sigue siendo
+    // token: es el aro decorativo, no parte de la persona.
     avatar: {
-      skin: 'var(--color-surface-raised)',
-      hair: 'var(--color-text)',
+      skin: '#cf9c78',
+      hair: '#241a14',
       accent: 'var(--color-accent)',
     },
   },

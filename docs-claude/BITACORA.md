@@ -7,6 +7,146 @@ bitácora.
 
 ---
 
+# Entrada 15 — Fase 3, sub-etapa 3.3c-3: avatar ilustrado de Luis
+
+Fecha: 2026-08-04. Fase: 3 — implementación, sub-etapa 3.3c-3.
+Rama: fase3/avatar-luis (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel.
+
+Entra el **asset ilustrado real de Luis** (diseñado en Claude Design) y
+reemplaza su placeholder geométrico. Cierra el pendiente de la Entrada 14
+("el asset definitivo entra *antes* de animarlo, no después").
+
+**Sigue sin haber movimiento.** El avatar integrado es tan estático como el
+placeholder que sustituye: sin `framer-motion`, sin listeners, sin timers,
+render en el HTML estático. Pupilas y parpadeo siguen siendo **3.4**.
+
+**Estado transitorio deliberado**: la sección de Confianza queda con **un
+avatar ilustrado (Luis) y uno geométrico (David)** hasta que David aporte foto
+y visto bueno. No es un olvido; es la razón de que el componente despache por
+socio.
+
+## Qué se hizo
+
+**1. `Avatar.tsx` pasa de asset único a despachador.** Antes renderizaba un
+solo SVG inline. Ahora hay un mapa `AVATAR_SHAPES: Record<string, AvatarShape>`
+(`{ luis: IllustratedLuis }`) y **`GeometricAvatar` como fallback**: quien no
+tenga ilustración cae al placeholder. Añadir el avatar de David = añadir su
+componente y una entrada al mapa, sin reescribir nada. **La interfaz pública no
+cambió**: sigue siendo `{ avatar, uid, className }`, así que `TeamMemberCard`
+no se tocó. La clave de despacho es el `uid` que ya se pasaba (`member.id`),
+no un prop nuevo.
+
+**2. El SVG va INLINE, no en un `<img>`.** No es preferencia de estilo: la
+ilustración está parametrizada con `var(--avatar-*)`, y una custom property del
+documento **no cruza la frontera de un documento SVG externo** — en `<img>` los
+colores caerían siempre al fallback y no habría variantes por socio. Inline es
+además lo que da SSR y lo que permite que 3.4 alcance los nodos.
+
+**3. Ids prefijados por socio, capa en `className`.** El asset venía con ids
+crudos (`bg`, `eyes`, `pupil-left`, `hair-front`…). La página monta dos
+avatares: ids duplicados serían HTML inválido y **romperían cualquier
+`querySelector` de 3.4**. Todos van a `${uid}-<capa>` (`luis-hair-front`,
+`luis-pupil-left`…) y el nombre de capa se conserva **además** en `className`,
+que sí puede repetirse — que es exactamente lo que el spec pide con `g.pupil`
+por ojo (§5). El asset ilustrado añade dos capas que el placeholder no tenía:
+`hair-back`/`hair-front` (el pelo va delante y detrás de la cara) y
+`facial-hair`. Se conserva `g#accessory` vacío (§5).
+
+**4. Colores: a `config/team.ts`, solo los de Luis.** Sus valores anteriores
+(`skin: var(--color-surface-raised)`, `hair: var(--color-text)`) eran **grises
+del placeholder**: aceptables en una silueta abstracta, pero en una cara
+ilustrada pintan un rostro gris. Pasan a piel y pelo reales (`#cf9c78`,
+`#241a14`). `accent` **sí sigue siendo token** (`var(--color-accent)`): es el
+aro decorativo, no parte de la persona. **David no se tocó.**
+Se descartó dejar actuar los fallback del propio SVG: habría dejado dos fuentes
+de verdad de color (una por socio) y roto lo que dice §5, que las variantes van
+por `config/team.ts`.
+Los valores se inyectan **una sola vez en el `<svg>`** como
+`--avatar-{skin,hair,accent}` y heredan; pintarlos por atributo `fill` habría
+obligado a rociar props por todo el árbol.
+`--avatar-skin-shadow` (sombra del tabique) **no** viene de `team.ts` a
+propósito: es una derivada de la piel, no un token de identidad; se deja caer
+al fallback `#b98461` del SVG. Queda anotado en el código que si cambia la piel
+de un socio hay que darle su sombra, no dejarla desincronizada.
+
+**5. Accesibilidad: el avatar es decorativo.** El asset venía con
+`role="img"` + `aria-label="Avatar socio 1"`; se cambian a
+`role="presentation"` + `aria-hidden="true"` + `focusable="false"`, igual que
+el placeholder. En la tarjeta el nombre del socio **ya está en texto**:
+anunciar el avatar sería ruido duplicado para un lector de pantalla.
+
+**6. Se conserva el `transform-box: fill-box; transform-origin: center`** de
+`g#eyes` y de ambas pupilas, que viene del diseño y es **requisito de 3.4**:
+sin él un `transform` de framer-motion se referiría al origen del `viewBox` y
+las pupilas saldrían disparadas fuera de la cara. `viewBox="0 0 120 120"`
+intacto.
+
+**7. Corrección de un `d` roto del asset.** La perilla venía como
+`M56,83 Q60,82.4 64,83 Q62.5,89 60,91 Q57.5,89 60,91 Q56,83 Z`: el último `Q`
+lleva **un solo par de coordenadas** cuando necesita dos, y `60,91` está
+repetido. Un segmento inválido **corta el render del path en ese punto**
+(SVG 1.1 §8.3.1), así que la perilla salía como medio triángulo abierto.
+Corregido al cierre simétrico evidente (`… Q57.5,89 56,83 Z`). Es el **único**
+cambio de geometría respecto al asset entregado y está marcado en el código: si
+el diseño quería otra cosa, se regenera y se reemplaza solo ese `d`.
+
+## Verificación de build
+- `npx tsc --noEmit`: pasa, sin salida.
+- `npm run build`: pasa. 8 páginas estáticas.
+- Advertencia `Invalid literal value, expected false at "i18n.localeDetection"`:
+  **sigue igual** (preexistente). **Ninguna advertencia nueva.** (La de
+  `baseline-browser-mapping` también es preexistente y ajena al cambio.)
+- **Sin ids duplicados**:
+  `grep -oE 'id="[^"]*"' .next/server/pages/es.html | sort | uniq -d` →
+  **salida vacía**. Ídem en `en.html`.
+- Avatar de Luis **inline y por SSR** (no depende de JS): `class="facial-hair"`
+  → 1 en `es.html`; `id="luis-hair-front"` → 1. Los 11 ids del asset salen
+  prefijados (`luis-bg`, `luis-hair-back`, `luis-face`, `luis-brows`,
+  `luis-eyes`, `luis-pupil-left`, `luis-pupil-right`, `luis-mouth`,
+  `luis-facial-hair`, `luis-hair-front`, `luis-accessory`). Búsqueda de ids
+  **sin** prefijar (`id="bg"`, `id="eyes"`, `id="pupil-left"`…) → sin
+  resultados.
+- Variables en el markup de Luis:
+  `style="--avatar-skin:#cf9c78;--avatar-hair:#241a14;--avatar-accent:var(--color-accent)"`.
+- **David sigue en placeholder geométrico**: conserva `id="david-hair"` y
+  `id="david-avatar-clip"`, y **no** tiene `facial-hair`, `hair-back` ni
+  `hair-front` (`class="facial-hair"` aparece 1 sola vez en todo el HTML).
+- **`git diff package.json` vacío. Cero dependencias nuevas.**
+
+## Pendientes
+- **Avatar de David**: pendiente de su **foto + visto bueno**. Hasta entonces
+  la sección queda con un ilustrado y un geométrico, a sabiendas. Al integrarlo,
+  revisar también sus colores en `config/team.ts` (hoy siguen siendo los grises
+  del placeholder, correctos solo mientras use el placeholder).
+- **Discrepancia visual del estado transitorio**: el disco del ilustrado es
+  `r=58` y el del geométrico `r=54` (~7% más grande), y el ilustrado no lleva
+  los hombros del placeholder. Verificar en el preview si canta lado a lado;
+  si canta, se normaliza al integrar a David, no antes.
+- **3.4**: movimiento de **ambos** avatares — pupilas (seguimiento en desktop,
+  mirada errante en táctil), parpadeo 4–7 s, reacción al tap — más spotlight de
+  dos niveles y atmósfera de fondo. El asset de Luis ya expone `g.pupil` por
+  ojo, con ids prefijados y `fill-box` puesto.
+- **3.5**: retiro de Neon Sunset (tokens de `globals.css`), **alias legacy** de
+  `Section`/`Card`/`Button` —siguen sin un solo consumidor— y el **scrollbar**
+  (`::-webkit-scrollbar-thumb`, aún en gradiente morado/rosa).
+- Copy de **Servicios sigue siendo el de Fase 0** (`services.title` "Nuestros
+  Servicios" / `services.subtitle` "Soluciones completas para tu negocio"),
+  pendiente heredado de la Entrada 12.
+- Claves i18n `team.roles.engineer` y `team.roles.statistician`: **sin
+  consumidor** desde 3.3c-1. Si no entra un tercer integrante, van en 3.5.
+- `hover:border-accent` en los chips del stack de **Servicios**: chips no
+  clicables, mismo criterio ya corregido en Valores. Queda para 3.5.
+- Animación de aparición-al-scroll del nav: sigue abierta (Entrada 10).
+- `DESIGN-SPEC §5` dice "los avatares actuales son placeholders geométricos".
+  Ya no es cierto para Luis. No se tocó el spec (fuera de alcance); actualizarlo
+  cuando entre el avatar de David y el estado deje de ser transitorio.
+
+## Archivos tocados
+`components/sections/Avatar.tsx`, `config/team.ts`, esta entrada.
+
+---
+
 # Entrada 14 — Fase 3, sub-etapa 3.3c-2: expansión apilada y grilla de proyectos
 
 Fecha: 2026-08-03. Fase: 3 — implementación, sub-etapa 3.3c-2.
