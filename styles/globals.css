@@ -136,9 +136,16 @@ html {
   background-color: var(--color-bg);
 }
 
+/* El fondo lo pinta SOLO `html` (arriba), y de ahí sale el lienzo del
+   documento. `body` lo tenía repetido con el mismo color y se quitó en 3.4b:
+   el orden de pintado de CSS coloca el fondo de `body` —bloque en flujo— por
+   ENCIMA de las capas con z-index negativo, así que ese duplicado tapaba por
+   completo el halo global del spotlight (DESIGN-SPEC §3) y tapará igual la
+   atmósfera de 3.4c. Sin él el render es idéntico píxel a píxel (`html` ya
+   pinta `--color-bg`) y la capa decorativa cabe entre el lienzo y el
+   contenido, que es donde el spec la pone. Verificado por muestreo de píxel. */
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

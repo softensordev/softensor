@@ -25,6 +25,13 @@ const jetbrainsMono = JetBrains_Mono({
 function App({ Component, pageProps }: AppProps) {
   return (
     <div className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans`}>
+      {/* El halo global del spotlight (DESIGN-SPEC §3) NO se monta aquí, sino
+          en `pages/index.tsx`, aunque conceptualmente sea de app. Turbopack
+          construye `_app` y cada página como entradas separadas y NO comparte
+          el chunk de framer-motion entre ellas: importarlo desde `_app`
+          duplicaba framer-motion en el bundle inicial (+187 KB raw / +61 KB
+          gzip, medido). Montado en la página, el halo cubre igual el documento
+          entero —es `fixed`— y el costo marginal es cero. Ver Entrada 18. */}
       <Component {...pageProps} />
     </div>
   );

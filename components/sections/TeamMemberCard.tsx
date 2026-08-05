@@ -35,7 +35,9 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({ member }) => {
   const panelId = `${member.id}-bio-panel`;
 
   return (
-    <Card className="h-full">
+    // `spotlight`: halo de tarjeta de §3 (3.4b). Es la única sección donde se
+    // activa — la justificación completa está en `Card`.
+    <Card className="h-full" spotlight>
       {/* Sin `space-y-*` en este contenedor: el panel colapsado sigue siendo
           una caja (de altura 0), y el gap del stack le dejaría un hueco muerto
           al pie de la tarjeta cerrada. El espaciado va DENTRO de cada bloque. */}
