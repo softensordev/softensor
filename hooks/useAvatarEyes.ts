@@ -11,7 +11,7 @@ import { usePointerTracker } from './usePointerTracker';
 // Movimiento de los ojos del avatar (DESIGN-SPEC §6, micro-interacciones #9,
 // #10 y #11 de §2).
 //
-// INVARIANTE DEL SPEC: el desplazamiento de `g.pupil` está clampeado a ±2.5
+// INVARIANTE DEL SPEC: el desplazamiento de `g.pupil` está clampeado a ±RANGE
 // unidades de usuario del viewBox, SIEMPRE, venga de donde venga el valor.
 // Lo único que cambia entre desktop y táctil es la FUENTE:
 //   desktop (`hover:hover` + `pointer:fine`) → listener compartido de §4.
@@ -31,12 +31,21 @@ import { usePointerTracker } from './usePointerTracker';
 // que son compositados y se detienen solos al llegar al destino. No hay ni un
 // `requestAnimationFrame` escrito a mano.
 
-/** Rango de desplazamiento de la pupila, en unidades del `viewBox` (§6). */
-const RANGE = 2.5;
+/**
+ * Rango de desplazamiento de la pupila, en unidades del `viewBox` (§6).
+ *
+ * El spec dice ±2.5 y en 3.4a se implementó así. Bajado a ±2.0 en 3.4b tras
+ * ver el avatar ILUSTRADO de Luis, que llegó después del spec: sus ojos son
+ * bastante más pequeños que los del placeholder geométrico, y con el cursor
+ * lejos el clamp llevaba la pupila justo al borde del ojo. ±2.0 cabe con
+ * margen en los dos assets. Es el único punto donde 3.4b se aparta del spec, y
+ * lo hace en la dirección conservadora: menos recorrido, nunca más.
+ */
+const RANGE = 2.0;
 
 /**
  * Distancia de cursor (px CSS) a la que la pupila alcanza el tope del rango.
- * Con el avatar a ~90px, ±2.5 unidades de un viewBox de 120 son <2px reales:
+ * Con el avatar a ~90px, ±2 unidades de un viewBox de 120 son ~1.5px reales:
  * el seguimiento se lee como "mirada", no como un ojo que rueda.
  */
 const POINTER_REACH = 400;

@@ -2,6 +2,7 @@ import { GetStaticProps } from 'next';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
+import GlobalSpotlight from '@/components/common/GlobalSpotlight';
 import Navigation from '@/components/common/Navigation';
 import Hero from '@/components/sections/Hero';
 import Services from '@/components/sections/Services';
@@ -19,6 +20,13 @@ export default function Home() {
         <meta name="description" content={t('meta.description')} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+
+      {/* Halo global del spotlight (DESIGN-SPEC §3). Es `fixed` y con z-index
+          negativo, así que cubre el documento entero sin participar del flujo
+          ni poder tapar contenido: "global" no depende de dónde se monte, y
+          desde aquí no duplica el chunk de framer-motion (ver `_app.tsx`).
+          Fuera del `<div>` de layout a propósito: no es contenido. */}
+      <GlobalSpotlight />
 
       <div className="min-h-screen">
         <Navigation />

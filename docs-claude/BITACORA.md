@@ -7,6 +7,227 @@ bitácora.
 
 ---
 
+# Entrada 18 — Fase 3, sub-etapa 3.4b: spotlight de dos niveles
+
+Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.4b.
+Rama: fase3/spotlight (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel + Lighthouse
+contra él. Local: `tsc --noEmit` y `next build` verdes, Lighthouse mobile 98–99
+/ LCP 1,5–2,2 s, y verificación de comportamiento en Chrome headless (abajo).
+
+Entra el spotlight de §3 completo: **halo global** (atmósfera que persigue al
+cursor) y **halo de tarjeta** (teal, dentro de la Card). Segundo consumidor del
+listener compartido de 3.4a: `hooks/usePointerTracker.ts` **no se tocó**. Más
+un ajuste heredado de 3.4a (rango de pupilas). **No** entra la atmósfera de
+fondo con ciclo de color (→ 3.4c).
+
+## Qué se hizo
+
+**1. `components/common/GlobalSpotlight.tsx` — halo global (§3).**
+Un `<div>` `fixed` de 1200×1200 px con `radial-gradient` **estático**
+(`circle closest-side`, `--color-atmo-1` → `transparent`), opacidad **5 %**,
+sin borde. El gradiente se escribe **una vez** en el montaje; lo único que
+cambia por evento es el `transform`. `marginLeft/-Top: -600px` centra el div en
+su propio origen, así que el punto del transform ES el centro del gradiente:
+cero aritmética por evento.
+
+Spring **blando**: `{stiffness: 45, damping: 22, mass: 1}` → ω ≈ 6,7 rad/s
+frente a los ≈19,3 de las pupilas (casi 3× más lento) y ζ ≈ 1,6,
+sobreamortiguado. Persigue con retraso claro y **sin rebote** — un rebote en
+una masa de 1200 px se leería como fallo. Medido: con el cursor en (400, 300),
+el halo va en (370,9, 278,2) 1,2 s después; llega, pero tarde.
+
+El color queda fijo en `--color-atmo-1` (el teal, primer paso del ciclo).
+**3.4c lo conectará al cross-fade** teal→cian→azul de §1; el patrón ya está
+preparado: la opacidad vive en el elemento y no en el color, igual que
+`.atmo-1/2/3` de `globals.css`, así que apilar capas y cruzarlas por `opacity`
+no obliga a tocar el gradiente.
+
+**2. `components/common/CardSpotlight.tsx` — halo de tarjeta (§3).**
+600×600 px, teal **fijo** (`--color-accent`, no atmósfera), opacidad **16 %**,
+borde perceptible (el color se sostiene hasta el 30 % del radio antes de caer,
+frente al desvanecido plano del global). Spring **rápido**
+(`{420, 40, 0.6}`, ω ≈ 26 rad/s, ~4× el global): el contraste entre los dos
+lags es lo que hace legibles los dos niveles.
+
+**No añade listeners.** Deriva la posición relativa restando el origen
+**cacheado** de la caja a los MotionValues globales; `getBoundingClientRect()`
+se invalida con `scroll`/`resize`, nunca se llama por evento (mismo patrón que
+el centro del avatar en `useAvatarEyes`).
+
+**3. Dos decisiones de este componente que no son obvias.**
+
+- **El `overflow: hidden` va en una capa de recorte, no en la `Card`.** §3 pide
+  que el halo no se derrame del borde redondeado, pero poner `overflow-hidden`
+  en la tarjeta **recorta también el anillo de `:focus-visible`** de su botón
+  (`outline-offset: 2px`): una regresión de accesibilidad a cambio de nada. El
+  halo vive dentro de un `absolute inset-0 overflow-hidden rounded-lg` propio.
+- **La compuerta de proximidad es CSS, no estado de React.** La capa está a
+  `opacity: 0` y sube a 1 con `group-hover`. Sin ella, un halo de 300 px de
+  radio se derramaría desde la tarjeta vecina cuando el cursor pasa entre las
+  dos. Se anima `opacity` (compositada) y no hay ni un `useState` por hover.
+
+**4. Dónde se aplica el halo de tarjeta: solo Confianza (socios). 2 instancias.**
+`Card` recibe un prop `spotlight` opt-in; `TeamMemberCard` es el único que lo
+pasa. En Servicios, Proyectos y Contacto las tarjetas son bloques de lectura y
+el halo ahí es ruido que se paga en cada celda de la grilla (una suscripción
+aritmética y una capa promovida en GPU por tarjeta). En Confianza la tarjeta
+**es** el objeto interactivo —se expande al clic y su avatar ya sigue al
+cursor—, así que el halo refuerza una affordance que ya existe.
+
+**5. `RANGE` de las pupilas: 2.5 → 2.0** (`hooks/useAvatarEyes.ts`).
+Único punto donde 3.4b se aparta del spec (§6 dice ±2.5), y en la dirección
+conservadora. Motivo: el avatar **ilustrado** de Luis llegó después del spec y
+tiene los ojos bastante más pequeños que el placeholder geométrico; con el
+cursor lejos, el clamp llevaba la pupila justo al borde del ojo. ±2.0 cabe con
+margen en los dos assets. El clamp y el mapeo no cambian: `deflect()` sigue
+siendo `clamp(d/400, −1, 1) × RANGE`, así que la saturación pasa a ocurrir en
+±2.0 exactos y la mirada es proporcionalmente idéntica, solo más corta.
+
+## El halo no se veía: dos capas opacas por delante
+
+Lo primero que dio la verificación por **muestreo de píxel** fue que el halo
+existía, se movía y **no se veía**: el píxel bajo el cursor era exactamente el
+fondo (`rgb(7,9,10)`). El halo se pinta con **z-index negativo** porque §3 lo
+quiere por debajo del contenido, y el orden de pintado de CSS coloca las capas
+de z negativo **justo encima del lienzo del documento y por debajo de todos los
+fondos de bloque**. Había dos fondos de bloque opacos del mismo color tapándolo:
+
+- **`body { background-color }`** en `globals.css`. Estaba **duplicado**: `html`
+  ya pinta `--color-bg`, y de `html` sale el lienzo. Se quitó del `body`. El
+  render es idéntico píxel a píxel; lo único que cambia es que ahora cabe una
+  capa decorativa entre el lienzo y el contenido.
+- **`bg-bg` de cada `<Section>`**. Mismo caso: `default` y `gradient` pintaban
+  `--color-bg` sobre el mismo `--color-bg`. Pasan a no pintar fondo. `surface`
+  se mantiene, y ahí el halo no se verá — hoy ninguna sección lo usa.
+
+La alternativa —subir el halo por encima del contenido— es exactamente lo que
+§3 prohíbe. **Esto lo hereda 3.4c**: la atmósfera de fondo se habría estrellado
+contra el mismo muro.
+
+**Límite conocido y no corregido**: `Footer.tsx` lleva `bg-bg` hardcodeado (no
+usa `Section`) y **tapa el halo sobre el pie de página**. Verificado por píxel:
+`rgb(7,9,10)` bajo el cursor en el footer, contra `rgb(6,17,17)` en el resto.
+A 5 % de opacidad la costura es muy tenue. Se arregla en 3.4c quitando esa
+clase, igual que en `Section`.
+
+## Dónde se monta el halo global: NO en `_app.tsx`
+
+Montarlo en `_app.tsx` es lo natural (envuelve toda la app) y es lo que costó
+**+192 802 B raw / +63 005 B gzip**: Turbopack construye `_app` y cada página
+como **entradas separadas y no comparte el chunk de framer-motion entre ellas**,
+así que importarlo desde `_app` metió **framer-motion duplicado** en el bundle
+inicial (dos chunks idénticos de 187 261 B). Medido, no supuesto.
+
+Montado en `pages/index.tsx` el costo marginal es cero y el halo cubre lo mismo:
+es `fixed`, así que "global" no depende de dónde cuelgue del árbol. Efecto
+lateral aceptado: la página 404 no lleva halo. `_app.tsx` queda con el
+comentario que explica por qué no está ahí, para que nadie lo "arregle".
+
+## Bundle — el delta de 3.4b es cero, como se predijo en 3.4a
+
+Misma metodología que las Entradas 16 y 17 (chunks JS referenciados por el HTML
+prerenderizado de `/`). Línea base medida en esta máquina con `.next` limpio:
+coincide **exactamente** con la Entrada 17.
+
+| Métrica | Base (3.4a) | Con 3.4b | Delta |
+|---|---|---|---|
+| First Load JS `/` raw | 582 756 B | 584 493 B | **+1 737 B (+0,30 %)** |
+| First Load JS `/` gzip | 186 547 B | 186 550 B | **+3 B (+0,002 %)** |
+| Chunks de entrada | 10 | 10 | 0 |
+
+El chunk de framer-motion ya estaba pagado en 3.4a y 3.4b lo reutiliza: el
+código nuevo son tres componentes pequeños que comprimen contra patrones que ya
+existían en el bundle. **La predicción de 3.4a se cumple.** (El CSS va aparte de
+esta métrica: 32 613 B tras la etapa.)
+
+## Verificación en Chrome headless, contra el build de producción
+
+Headless reporta `hover:none / pointer:none`, y eso apaga **tanto el JS como
+los variantes `hover:`/`group-hover:` de Tailwind** (que van dentro de
+`@media (hover: hover)`). En 3.4a se parcheó `matchMedia`; aquí no habría
+bastado —el CSS no lo ve— así que se forzó en Blink:
+`--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4`.
+La página ve entonces `(hover:hover) and (pointer:fine)` de verdad, en JS y en
+CSS. El resto es tal cual.
+
+| Qué | Resultado |
+|---|---|
+| Listeners `pointermove` con halo global + 2 halos de tarjeta + 2 avatares | **1** (`adds:1, removes:0`, antes y después de recorrer la página) |
+| `background-image` / `background-position` tras dos movimientos de cursor | **idénticos** en los 3 halos → el gradiente nunca se recalcula |
+| Transform del halo global | `none` → `matrix(…, 370.9, 278.2)` → `matrix(…, 954.3, 669.4)` (lag del spring blando, visible) |
+| Halo global visible (muestreo de píxel) | `rgb(6,17,17)` bajo el cursor vs `rgb(7,9,10)` lejos. Predicho 0,05×teal + 0,95×fondo = `rgb(7,18,18)` |
+| `pointer-events` / z-index del halo global | `none` / `-10` |
+| CTA del hero con el halo encima | `elementFromPoint` → `BUTTON "Hablemos"`; el clic real llega al botón y la página **hace scroll a Contacto** |
+| Halo de tarjeta al hacer hover | capa a `opacity: 1`, halo centrado en el cursor (311,0, 153,9 para un cursor en el centro de una tarjeta de 624×310) |
+| Tarjeta vecina en ese mismo instante | `opacity: 0` → no hay derrame entre tarjetas |
+| Al salir de la tarjeta | ambas capas vuelven a `opacity: 0` |
+| `prefers-reduced-motion: reduce` | **0** listeners, **0** halos montados |
+| Táctil (390×844, emulación móvil: `pointer:coarse`) | **0** listeners, **0** halos montados |
+| Consola durante la carga | solo el 404 preexistente de `favicon.ico` → **sin mismatch de hidratación** |
+
+**SSR**: el HTML prerenderizado no contiene ningún `radial-gradient` (0
+ocurrencias). Los tres halos se montan solo tras resolver el modo en efecto, ya
+en cliente, así que servidor y primer render de cliente coinciden. Las clases
+`relative isolate group` de la Card sí salen en SSR y no cambian nada visual.
+
+**Nota de apilamiento**: el halo de tarjeta va a `-z-10` **dentro de un
+`isolate`** en la Card. Sin ese contexto de apilamiento, el z negativo se
+resolvería contra la raíz del documento y el halo quedaría escondido tras el
+`bg-surface` de la propia tarjeta. Verificado: `parentZ: -10`,
+`parentOverflow: hidden`.
+
+## Lighthouse
+
+`npm run build && npm start`, Lighthouse 12 vía `npx` efímero (Chrome del
+sistema). **No se instaló nada en el proyecto**; `package.json` no cambió.
+
+| Perfil | Score | LCP | FCP | TBT | CLS |
+|---|---|---|---|---|---|
+| Mobile, corrida completa | **98** | **2,2 s** | 0,8 s | 90 ms | 0 |
+| Mobile, `--preset=perf` ×3 | 99 / 99 / 99 | 1,5–1,6 s | 1,5–1,6 s | 90–100 ms | 0 |
+
+Objetivos cumplidos: ≥80 ✅, LCP <2,5 s ✅. Elemento LCP: el `<h1>` del hero,
+igual que en 3.4a. Contra 3.4a (99 / 2,1 s / TBT 40 ms): el score y el LCP están
+dentro del ruido entre corridas, pero **el TBT sube de 40 a 90–100 ms**. Es un
+número honesto y sin diagnóstico cerrado: puede ser el trabajo de hidratación de
+tres componentes más y sus springs, o carga de la máquina (esta sesión corrió
+builds y Chrome en paralelo). Sigue siendo un décimo del umbral de 200 ms de
+Lighthouse. **Vale la pena volver a mirarlo en el preview de Vercel**, que es
+parte de la compuerta.
+
+Otras categorías en esta corrida local: accesibilidad **100**, best-practices
+**96**, **SEO 100** — el pendiente "SEO 60" arrastrado desde etapas anteriores
+**no se reproduce en local**; hay que comprobar si era específico del preview.
+
+Los 60 fps en Android de gama media siguen **sin medir** (no hay dispositivo).
+Lo estructural sí se puede afirmar: solo se anima `transform` (y `opacity` en la
+compuerta de hover), el gradiente está rasterizado una vez, y en táctil no hay
+ni listener ni halos montados.
+
+## Advertencias de build
+
+Sin cambios respecto a las Entradas 16 y 17: sigue el warning
+`Invalid literal value, expected false at "i18n.localeDetection"` y el aviso de
+`baseline-browser-mapping`. Ninguno es de esta etapa.
+
+## Pendientes
+
+- **3.4c**: atmósfera de fondo con ciclo de color. **Conecta el color del halo
+  global al cross-fade** `--color-atmo-1/2/3` (hoy fijo en `atmo-1`). Aprovecha
+  el trabajo de apilamiento de esta entrada, y debería **quitar el `bg-bg` de
+  `Footer.tsx`** para cerrar la costura del pie de página.
+- **Avatar de David**: sigue geométrico. Hereda el movimiento sin código nuevo.
+- **3.5**: limpieza de la paleta Neon Sunset + alias legacy (`variant` de `Card`
+  y `background` de `Section`) + scrollbar, `npm audit` de las 11
+  vulnerabilidades preexistentes (1 crítica, 8 altas), copy de Servicios
+  pendiente de Fase 0, `next lint` roto, y evaluación de `LazyMotion` si el
+  presupuesto de bundle aprieta.
+- **SEO 60**: no se reproduce en local (100). Verificar contra el preview antes
+  de gastar tiempo en diagnosticarlo.
+
+---
+
 # Entrada 17 — Fase 3, sub-etapa 3.4a: listener de puntero + pupilas
 
 Fecha: 2026-08-04. Fase: 3 — implementación, sub-etapa 3.4a.
