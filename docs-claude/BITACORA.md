@@ -7,6 +7,275 @@ bitácora.
 
 ---
 
+# Entrada 19 — Fase 3, sub-etapa 3.4c: atmósfera de fondo (cierra 3.4)
+
+Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.4c.
+Rama: fase3/atmosfera (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel + Lighthouse
+contra él. Local: `tsc --noEmit` y `next build` verdes, Lighthouse mobile 98–99
+/ LCP 2,3 s, y verificación en Chrome headless con muestreo de píxel (abajo).
+
+**Cierra la capa de movimiento (3.4).** Entra la última pieza de §1: el color de
+la atmósfera empieza a ciclar de verdad. Dos frentes: el **halo global** deja de
+estar clavado en `--color-atmo-1` y pasa al cross-fade teal→cian→azul, y nacen
+los **background-paths**, la textura de fondo que el brief pedía y que hasta hoy
+no existía. Los `@keyframes atmo-a/b/c` y las clases `.atmo-1/2/3` estaban en
+`styles/globals.css` desde 3.0 **sin un solo consumidor**; esta etapa los pone a
+trabajar y **no añade ni una regla de CSS**: `styles/globals.css` no se tocó.
+
+## Qué se hizo
+
+**1. `components/common/GlobalSpotlight.tsx` — el halo ya cicla de color.**
+El halo pasa de ser un `<div>` con un gradiente a ser un **contenedor con tres
+capas superpuestas** (`absolute inset-0`), cada una con su `radial-gradient`
+estático en `--color-atmo-1/2/3` y su clase `.atmo-1/2/3`. El color **no se
+interpola** —eso exigiría `@property`, descartado en Fase 2—: se cruzan capas de
+color fijo por `opacity`.
+
+El `transform` sigue viviendo **en el contenedor**: una suscripción, un par de
+springs, un `will-change`. Las tres capas heredan el movimiento del padre, así
+que el halo persigue al cursor **como un solo objeto** y lo único que cambia
+entre ellas es cuál está visible. Todo lo demás de 3.4b queda intacto: radio
+600, spring blando `{45, 22, 1}`, `pointer-events: none`, `-z-10`, montaje solo
+en modo `pointer`, y los gradientes escritos una vez en el montaje.
+
+**2. Cómo se componen las dos opacidades (y el valle que aparece).**
+La opacidad pico sigue en el contenedor (`PEAK_OPACITY = 0.05`) y la del
+cross-fade en las capas. `opacity` en el contenedor las **agrupa**: se mezclan
+entre sí primero, sobre fondo transparente, y el resultado se multiplica por
+0,05. El alfa que sale de N capas apiladas es `1 − Π(1 − aᵢ)`, **no** `Σ aᵢ`:
+
+| Momento del ciclo | Opacidades de capa | Alfa del grupo | Halo compuesto |
+|---|---|---|---|
+| Pico de cada color (t = 0, ⅓, ⅔) | 1 / 0 / 0 | 1,00 | **5,0 %** |
+| Mitad de un cruce | 0,5 / 0,5 / 0 | 0,75 | **3,75 %** |
+
+En el pico —que es lo que acota §3 (4–6 %)— el halo es **idéntico píxel a píxel
+al de 3.4b**. El valle de 3,75 % es estructural al cross-fade por alfa
+(source-over no conserva la suma de opacidades), dura un instante de un ciclo de
+24 s y **no se corrige subiendo `PEAK_OPACITY`**: eso sacaría el pico del rango
+del spec. Medido en el navegador: con las capas a 0,554 / 0,446 / 0 el alfa del
+grupo da **0,752**, contra los 0,75 predichos.
+
+**3. `components/common/BackgroundPaths.tsx` — la textura de fondo (§1).**
+Ocho curvas Bézier (`C` + `S`, tangente continua en cada empalme) casi
+horizontales que cruzan el viewport, tipo curvas de nivel o traza de señal.
+`viewBox` 1440×900 con `preserveAspectRatio="xMidYMid slice"`: cubre sin
+deformar. Con `none` las curvas se aplastarían en móvil (390×844 contra
+1440×900) hasta parecer otra cosa. Todas van de x = −100 a x = 1540, fuera del
+viewBox: los extremos se recortan y nunca se ve dónde nace o muere una línea.
+
+Mismo cross-fade de tres capas que el halo. Los ocho `<path>` se declaran **una
+vez** dentro de `<defs>` y se instancian tres veces con `<use>`; cada `<g>`
+impone su `stroke` por herencia. El HTML lleva ocho `d`, no veinticuatro.
+
+**Cero JavaScript.** Ni framer-motion, ni `rAF`, ni estado, ni `matchMedia`.
+Todo el movimiento son los `@keyframes` que ya existían.
+
+**4. Presencia media: cómo se calibró y qué se midió.**
+El encargo explícito era corregir que el fondo (solo el halo al 5 %) se veía
+muerto. `PRESENCE = 0.16` en el contenedor, multiplicado por una
+`stroke-opacity` por línea de 0,45 a 1,0 y anchos de 1 a 2,25 px. La variación
+por línea es deliberada: un juego de líneas idénticas se lee como un gráfico;
+variarlas se lee como profundidad.
+
+Medido por **muestreo de píxel** sobre el build de producción, bajo
+`reduce` (una sola capa a opacidad 1 y sin halo → fondo limpio `rgb(7,9,10)`),
+con barrido de ±5 px para coger el pico del trazo antialiaseado:
+
+| Línea | Ancho | `stroke-opacity` | Compuesto esperado | Píxel medido |
+|---|---|---|---|---|
+| #4 | 2,25 px | 1,00 | 16,0 % → `rgb(6,39,35)` | **`rgb(5,38,35)`** |
+| #2 | 2,00 px | 0,90 | 14,4 % | `rgb(5,35,32)` |
+| #5 | 1,50 px | 0,75 | 12,0 % | `rgb(6,30,28)` |
+| #1 | 1,50 px | 0,60 |  9,6 % | `rgb(6,26,24)` |
+| #3 | 1,25 px | 0,70 | 11,2 % | `rgb(6,21,20)` |
+| #0 | 1,00 px | 0,45 |  7,2 % | `rgb(6,17,16)` |
+
+La línea fuerte cae **a 1 punto de la predicción**; las finas quedan por debajo
+porque un trazo de 1–1,25 px se reparte entre dos filas de píxeles y ningún
+píxel recibe cobertura completa. Contra el fondo (`rgb(7,9,10)`) y contra el
+halo (que compone a `rgb(7,18,18)`), las líneas son claramente más presentes que
+la capa de 3.4b sin acercarse al texto (`#ECEEEE`).
+
+**5. La barra de navegación se estaba comiendo la primera línea.**
+La versión inicial arrancaba en y = 60 del viewBox. A 1280×800 la escala del
+`slice` es 0,889 y el desplazamiento vertical es 0, así que esa línea caía en
+y ≈ 53 px de pantalla — **debajo de la navegación**, que es `fixed`, mide ~72 px
+y va con `bg-bg/90` + `backdrop-blur`. El muestreo lo cazó: Δ = (0, −1, 0)
+respecto al fondo, es decir invisible. Movida a y = 115 (→ y ≈ 102 px de
+pantalla) el mismo punto da Δ = (−1, +8, +6). Una de las ocho líneas estaba
+tirada a la basura y no se habría visto revisando el código.
+
+**6. Global, no por sección.** Una sola instancia, montada en `pages/index.tsx`
+junto al halo. Es `fixed`: "global" no depende de dónde cuelgue del árbol. Por
+sección habría N copias del mismo SVG y N juegos de tres capas compositadas a
+cambio de nada visible, y el ciclo de color de cada sección arrancaría en un
+instante distinto. El montaje va en `index.tsx` y **no en `_app.tsx`** por la
+razón de la Entrada 18 (Turbopack duplicaría el chunk de framer-motion); aquí no
+aplicaría —los paths no lo importan— pero mantenerlos juntos deja el orden de
+apilamiento legible en un solo sitio.
+
+**7. Se ven también en táctil, y eso es a propósito.** El halo depende del modo
+puntero porque sin cursor no tiene qué perseguir. Los paths no persiguen nada.
+Como además no consultan el modo, **el markup es idéntico en servidor y en
+cliente**: el SVG sale entero en el HTML estático y la hidratación no puede
+desalinearse. Verificado en emulación móvil (390×844, `pointer: coarse`): tres
+animaciones vivas, cero halos, cero listeners nuestros.
+
+**8. `components/sections/Footer.tsx` — se quitó el `bg-bg`.**
+Era el último fondo de bloque opaco de la página y tapaba las capas de z
+negativo justo sobre el pie: la costura que la Entrada 18 dejó documentada y sin
+corregir. Mismo caso que `Section` en 3.4b — el lienzo del documento ya pinta
+`--color-bg`, así que quitarlo es idéntico píxel a píxel salvo por el halo y los
+paths, que ahora sí se ven ahí. Es el único archivo de `components/sections/`
+que se tocó.
+
+## Orden de apilamiento final
+
+```
+lienzo del documento   html { background-color: --color-bg }
+  → background-paths   fixed, -z-20, sin JS, también en táctil
+  → halo global        fixed, -z-10, solo en modo pointer
+  → contenido          z auto  (Section/Footer sin fondo opaco)
+  → navegación         fixed,  z-50, opaca a propósito
+```
+
+Verificado en el navegador: paths a `z-index: -20` / `pointer-events: none` /
+`aria-hidden`, halo a `-10`, y `elementFromPoint` sobre el CTA del hero devuelve
+`BUTTON "Hablemos"` con las dos capas encima. Los clics siguen intactos.
+
+La única capa que tapa deliberadamente es la navegación (`z-50`,
+`bg-bg/90` + `backdrop-blur`), y por eso hubo que bajar la primera línea. La
+variante `surface` de `Section` sigue siendo opaca, y ahí la atmósfera no se
+verá: hoy ninguna sección la usa.
+
+## GPU-puro: el inventario de animaciones
+
+`document.getAnimations()` sobre el build de producción, recorriendo los
+keyframes de cada una para ver **qué propiedades** tocan:
+
+| Escenario | Animaciones vivas | Propiedades animadas |
+|---|---|---|
+| Desktop (`pointer`) | 6 — `atmo-a/b/c` ×2 (paths + halo) | **solo `opacity`** |
+| Móvil táctil | 3 — `atmo-a/b/c` (solo paths) | **solo `opacity`** |
+| `prefers-reduced-motion: reduce` | **0** | — |
+
+Ni una animación de color, `background-image`, `background-position` o `stroke`.
+Ni un `requestAnimationFrame`. El `transform` del halo lo escriben los springs
+de framer-motion, que es la capa de 3.4b y no cambió.
+
+**Listeners `pointermove`**: la instrumentación de esta etapa parchea
+`EventTarget.prototype` (no solo `window`) y por eso cuenta más que la Entrada
+18. Desktop: **5**; táctil y `reduce`: **4**. Los 4 de base son infraestructura
+de React/Next —delegación de eventos sobre el div raíz y el
+`next-route-announcer`, dos cada uno— y no son nuestros. El **quinto, sobre
+`window`, es el listener compartido de `usePointerTracker`**, y es exactamente
+1: partir el halo en tres capas **no añadió ninguno**. La cifra "1" de la
+Entrada 18 sigue siendo correcta para lo que ella medía (listeners de la app).
+
+## Reduced-motion
+
+Sin una sola regla nueva; se reutiliza el bloque que ya estaba en
+`globals.css`. Verificado con `--force-prefers-reduced-motion`:
+
+- `.atmo-1` a `opacity: 1`, `.atmo-2` y `.atmo-3` a `0`, las tres con
+  `animation: none` → la atmósfera queda **congelada en teal**.
+- `document.getAnimations()` → **0**.
+- Los paths **siguen renderizados y visibles** (líneas quietas en teal), que es
+  lo correcto: reducir movimiento no es apagar la decoración.
+- El halo, como en 3.4b, ni se monta.
+- `.bg-paths` (la clase que estaba reservada desde 3.0 y que este componente por
+  fin usa) anula `animation`/`transform` en el contenedor. Hoy es un marcador
+  —el contenedor no anima nada por sí mismo— y así queda el gancho para
+  cualquier deriva futura.
+
+## Bundle
+
+Misma metodología de siempre (chunks JS referenciados por el HTML
+prerenderizado de `/`, locale `es`), con la **línea base remedida en esta
+máquina** sobre el árbol de `HEAD` en la misma sesión: la cuenta de chunks de
+esta medición es 8, no los 10 de la Entrada 18, así que los absolutos no son
+comparables entre entradas — el delta sí.
+
+| Métrica | Base (3.4b) | Con 3.4c | Delta |
+|---|---|---|---|
+| First Load JS `/` raw | 584 063 B | 585 805 B | **+1 742 B (+0,30 %)** |
+| First Load JS `/` gzip | 185 538 B | 186 153 B | **+615 B (+0,33 %)** |
+| Chunks de entrada | 8 | 8 | 0 |
+| CSS | 32 613 B | 32 663 B | **+50 B** |
+| HTML de `/es` gzip | 6 536 B | 6 954 B | **+418 B** |
+
+**Cero framer-motion nuevo**, como se predijo: el JS que entra son los dos
+componentes (el array de paths y el `map` de capas), y el SVG completo cuesta
+418 B comprimidos en el HTML. Los +50 B de CSS son las clases de utilidad
+nuevas (`-z-20`, `inset-0`) que Tailwind ahora emite; **`globals.css` no se
+tocó**.
+
+## Lighthouse
+
+`npm run build && npm start`, Lighthouse 12 vía `npx` efímero. **No se instaló
+nada en el proyecto**; `package.json` no cambió.
+
+| Perfil | Score | LCP | FCP | TBT | CLS | SI |
+|---|---|---|---|---|---|---|
+| Mobile ×3 (secuenciales) | **98 / 99 / 98** | **2,3 s** | 0,8 s | 100 / 30 / 110 ms | 0 | 0,8 s |
+| Desktop | 100 | 0,5 s | 0,2 s | 0 ms | 0 | — |
+
+Objetivos cumplidos: ≥80 ✅, LCP <2,5 s ✅. Otras categorías: accesibilidad
+**100**, best-practices **96**, **SEO 100**. Elemento LCP: el `<h1>` del hero,
+igual que en 3.4a/3.4b.
+
+Contra 3.4b (98 / 2,2 s / TBT 90–100 ms): **dentro del ruido entre corridas**.
+El LCP sube 0,1 s y el TBT cae al rango 30–110 ms. Los paths son fondo estático
+animado por opacidad y no tocan el hilo principal después de la primera
+composición, así que no había motivo para que costaran LCP y no lo hicieron.
+
+**Aviso de método**: una primera corrida con Lighthouse mobile y desktop **en
+paralelo** dio TBT 240 ms y perf 94. Es contención de CPU de la propia medición,
+no de la página: repetido en serie vuelve a 30–110 ms. Cualquier TBT medido en
+esta máquina con otra cosa corriendo al lado no vale.
+
+## Advertencias de build
+
+Sin cambios respecto a las Entradas 16–18: sigue el warning
+`Invalid literal value, expected false at "i18n.localeDetection"` y el aviso de
+`baseline-browser-mapping`. Ninguno es de esta etapa.
+
+## SSR
+
+El SVG sale **entero en el HTML estático**: `.bg-paths`, los 8 `<path>` dentro
+de `<defs>`, los 3 `<use href="#atmo-signal-paths">` y las 3 clases
+`.atmo-1/2/3`. `radial-gradient` aparece **0 veces** en el HTML: el halo sigue
+montándose solo tras resolver el modo, ya en cliente. Consola durante la carga:
+solo el 404 preexistente de `favicon.ico` → **sin mismatch de hidratación**.
+
+## Nota de sesión: node_modules quedó roto un rato
+
+Para medir la línea base intenté construir una copia del árbol de `HEAD` en un
+directorio aparte. Un `cp` resolvió a través de un symlink y **copió 1,3 GB
+dentro de `node_modules/node_modules`**, lo que rompió la resolución de módulos
+y tumbó el build con `Cannot read properties of null (reading 'useContext')` —
+en `HEAD` también, o sea que por un momento pareció un problema del repo y no
+lo era. Borrado el directorio anidado, el build vuelve verde. `node_modules`
+está en `.gitignore`, así que nada de esto llegó al repo, y no quedan
+directorios temporales. La línea base acabó midiéndose **en el propio proyecto**
+restaurando los archivos de `HEAD` con `git show`, construyendo, y volviendo a
+poner los de la rama.
+
+## Pendientes
+
+- **Avatar de David**: sigue geométrico. Hereda el movimiento sin código nuevo.
+- **3.5 — limpieza y cierre de Fase 3**: retirar la paleta Neon Sunset + los
+  alias legacy (`variant` de `Card`, `background` de `Section`) + el scrollbar
+  morado; `npm audit` de las 11 vulnerabilidades preexistentes (1 crítica, 8
+  altas); diagnóstico del **SEO 60** que aparece en Vercel y **no** en local
+  (aquí da 100, tercera etapa seguida); copy de Servicios aún de Fase 0;
+  `next lint` roto; evaluación de `LazyMotion` si el bundle aprieta; y el
+  **gate de performance final** antes del merge a `main`.
+
+---
+
 # Entrada 18 — Fase 3, sub-etapa 3.4b: spotlight de dos niveles
 
 Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.4b.
