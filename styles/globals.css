@@ -129,21 +129,30 @@
 }
 
 /* Sitio dark-only (dark/light diferido en Fase 2). El fondo y el color de
-   texto base son tokens Señal; no hay clase .dark ni toggle. */
+   texto base son tokens Señal; no hay clase .dark ni toggle.
+
+   ESTE `background-color` ES EL LIENZO DEL DOCUMENTO, NO EL FONDO DE LA PÁGINA
+   (3.5a). El fondo que se ve detrás de las capas decorativas lo pinta ahora un
+   elemento real en flujo: el div raíz de `pages/index.tsx`, que abre un
+   stacking context y ordena color base → paths → halo → contenido → nav con
+   z-index no negativos. Aquí se conserva porque el navegador propaga el fondo
+   del elemento raíz al lienzo, y el lienzo es lo que se ve en el overscroll y
+   en cualquier área que el div raíz no cubra. Al pintarse SIEMPRE por debajo de
+   todo, no participa de ese orden ni puede tapar nada.
+
+   `scrollbar-width`/`scrollbar-color` viven aquí porque Firefox lee las
+   propiedades estándar del elemento que hace de scroll de la página. */
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
   background-color: var(--color-bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
 }
 
-/* El fondo lo pinta SOLO `html` (arriba), y de ahí sale el lienzo del
-   documento. `body` lo tenía repetido con el mismo color y se quitó en 3.4b:
-   el orden de pintado de CSS coloca el fondo de `body` —bloque en flujo— por
-   ENCIMA de las capas con z-index negativo, así que ese duplicado tapaba por
-   completo el halo global del spotlight (DESIGN-SPEC §3) y tapará igual la
-   atmósfera de 3.4c. Sin él el render es idéntico píxel a píxel (`html` ya
-   pinta `--color-bg`) y la capa decorativa cabe entre el lienzo y el
-   contenido, que es donde el spec la pone. Verificado por muestreo de píxel. */
+/* `body` no pinta fondo: bastan el lienzo de `html` y el div raíz de la página.
+   Un tercer fondo del mismo color solo añadiría una capa opaca más que vigilar
+   (en 3.4b este duplicado tapó el halo entero). */
 body {
   font-family: var(--font-sans);
   color: var(--color-text);
@@ -151,22 +160,46 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar for dark theme */
+/* ===== BARRA DE SCROLL — Señal (3.5a) =====
+   Reemplaza la scrollbar Neon Sunset (track morado #1A0B2E, thumb en degradado
+   morado→magenta→naranja): era el último resto de la paleta vieja con presencia
+   permanente en pantalla, y contradecía la regla de §1 de que el color fuerte
+   solo aparece donde hay acción.
+
+   Track transparente y thumb en `--color-border-strong` (blanco al 14 %): el
+   mismo gris con el que están dibujados los bordes de las tarjetas, así que la
+   barra se lee como parte de la retícula y no como un adorno. El hover sube a
+   `--color-accent-glow` (teal al 25 %) — un indicio de que el elemento responde,
+   muy por debajo del teal sólido que marca las acciones reales.
+
+   Firefox usa `scrollbar-width`/`scrollbar-color` (en `html`, arriba); no
+   admite estado hover y se queda en el gris base. Chrome/Edge/Safari usan los
+   pseudo-elementos de abajo. */
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A0B2E;
+  background: transparent;
 }
 
+/* El borde transparente + `background-clip: padding-box` deja el thumb en 4 px
+   visibles dentro de un canal de 10 px: se agarra bien con el ratón y se ve
+   como una línea fina, que es lo que pide el minimalismo Señal. */
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #8338EC 0%, #FF006E 100%);
-  border-radius: 5px;
+  background-color: var(--color-border-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #FF006E 0%, #FB5607 100%);
+  background-color: var(--color-accent-glow);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Custom gradient utilities */

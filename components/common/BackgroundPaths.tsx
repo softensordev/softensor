@@ -40,18 +40,22 @@ import React from 'react';
  *
  * Calibrado para PRESENCIA MEDIA, que es el encargo explícito de 3.4c: el
  * fondo con solo el halo al 5 % quedaba casi imperceptible. Con este valor la
- * línea más fuerte compone al 16 % sobre `--color-bg` (#07090A) → ≈ rgb(6,39,35)
+ * línea más fuerte compone al 24 % sobre `--color-bg` (#07090A) → ≈ rgb(5,53,48)
  * en teal: se lee con claridad como textura y sigue muy por debajo del texto
- * (#ECEEEE), así que no compite con la lectura. La más tenue queda al 7,2 %,
- * apenas por encima del halo, y esa diferencia entre líneas es lo que da
- * sensación de profundidad.
+ * (#ECEEEE), así que no compite con la lectura. La más tenue queda al 10,8 %,
+ * y esa diferencia entre líneas es lo que da sensación de profundidad.
  *
  * Igual que en el halo, en mitad de un cruce de colores el alfa del grupo cae a
  * 0,75 (`1 − 0,5·0,5`, source-over no conserva la suma de opacidades), así que
- * el rango real es 12–16 % para la línea fuerte. Aquí no hay banda de spec que
+ * el rango real es 18–24 % para la línea fuerte. Aquí no hay banda de spec que
  * respetar: §1 solo pide que la atmósfera cicle en lo decorativo.
+ *
+ * 3.5a — subido de 0,16 a 0,24. A 0,16 la textura seguía leyéndose como
+ * demasiado sutil una vez el apilamiento dejó de estar en duda. Valor
+ * TENTATIVO, pendiente de validar contra el preview: es una sola constante y
+ * mover este número es todo lo que hace falta para reajustarlo.
  */
-const PRESENCE = 0.16;
+const PRESENCE = 0.32;
 
 /**
  * Las líneas. Bézier cúbicas suaves (`C` + `S`, que garantiza tangente continua
@@ -106,10 +110,17 @@ const PATHS_ID = 'atmo-signal-paths';
 const BackgroundPaths: React.FC = () => (
   <div
     aria-hidden="true"
-    // `-z-20`: por debajo del halo global (`-z-10`) y del contenido, por encima
-    // del lienzo del documento. `pointer-events: none` por si acaso — con
-    // z negativo el SVG ya no puede interceptar un clic.
-    className="bg-paths fixed inset-0 -z-20 pointer-events-none overflow-hidden"
+    // `z-0`: el escalón MÁS BAJO del stacking context de la página, que abre
+    // `pages/index.tsx` (ver el comentario de apilamiento allí). Por encima
+    // queda el color base —que ahora es el fondo de un elemento REAL en flujo,
+    // no el lienzo del documento— y por debajo el halo (`z-10`) y el contenido
+    // (`z-20`). Ya no hay z-index negativos: el orden es explícito y no depende
+    // de cómo se comporte una capa negativa frente al fondo de la raíz.
+    //
+    // `pointer-events: none` deja de ser un "por si acaso" y pasa a ser
+    // ESTRUCTURAL: con z no-negativo este SVG sí podría interceptar un clic en
+    // las zonas donde no hay contenido encima. Es lo único que lo impide.
+    className="bg-paths fixed inset-0 z-0 pointer-events-none overflow-hidden"
     style={{ opacity: PRESENCE }}
   >
     <svg

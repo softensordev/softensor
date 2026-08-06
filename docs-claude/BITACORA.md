@@ -7,6 +7,266 @@ bitácora.
 
 ---
 
+# Entrada 20 — Fase 3, sub-etapa 3.5a: apilamiento de fondo, presencia y scrollbar
+
+Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.5a (primera parte del
+cierre). Rama: `fase3/limpieza-cierre` (desde develop).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel. Local:
+`tsc --noEmit` y `next build` verdes, Lighthouse mobile 98–99 / LCP 2,2–2,3 s
+(tres corridas), y verificación en Chrome headless por muestreo de píxel y CDP.
+
+Sub-etapa puramente visual: apilamiento de las capas de fondo, presencia de la
+textura y estilo de la barra de scroll. **La limpieza de Neon Sunset, los alias
+legacy, el SEO y el resto de pendientes NO entran aquí**: son 3.5b.
+
+Incluye una **reapertura de DESIGN-SPEC §3**: el halo global sube de 4–6 % a
+12 % de opacidad pico. Ver el punto 4 de "Qué se hizo".
+
+## Lo primero: el bug reportado no se reproduce
+
+El encargo partía de que los background-paths **no se ven en absoluto**, ni
+siquiera con `PRESENCE = 1`, y de que la causa era que las capas de z-index
+negativo quedaban por detrás del lienzo que pinta
+`html { background-color: var(--color-bg) }`. **Esa causa no se sostiene, y el
+síntoma no se reproduce en este entorno.** Lo medido, sobre el build de
+producción servido con `next start`:
+
+- Con `PRESENCE = 1`, `-z-10`: las ocho líneas se ven. Muestreo en la columna
+  x = 640 (1280×800, `--force-prefers-reduced-motion` para congelar `.atmo-1`):
+  la línea fuerte da `rgb(0,175,153)` contra un fondo de `rgb(7,9,10)`.
+- Con `PRESENCE = 1`, `-z-20`: **los mismos píxeles, exactamente**. Se
+  reconstruyó y se volvió a medir; `(5,61,55)`, `(2,119,105)`, `(0,175,153)`,
+  `(4,76,68)` en los cuatro puntos de control, idénticos en las dos variantes.
+  Es decir: subir de `-z-20` a `-z-10` no cambió nada porque no había nada que
+  cambiar, no porque el lienzo siguiera tapando.
+- El motivo es de spec: el `background-color` del elemento raíz **se propaga al
+  lienzo del documento**, y el lienzo se pinta SIEMPRE por debajo de todo,
+  incluidas las capas de z negativo. Un fondo en `html` no puede tapar un
+  `-z-20`. Lo que sí tapa son los fondos de bloque de elementos en flujo — y eso
+  es exactamente lo que había pasado dos veces antes (el `background` duplicado
+  de `body` en 3.4b, el `bg-bg` de `Section` y del `Footer`).
+- También se descartó la otra hipótesis obvia, que `stroke="var(--color-atmo-1)"`
+  como atributo de presentación no resolviera la variable: se probó aislado y
+  Chrome la resuelve igual en atributo que en `style`.
+- Se recorrió la página entera a 1280×2400: las ocho líneas presentes, ninguna
+  sección tapándolas.
+
+**Hipótesis de por qué Luis no las veía** (especulación, no verificada): un
+contenedor Docker de `scripts/dev.sh` sirviendo un build anterior a 3.4c, o
+haber mirado antes de reconstruir. No hay forma de confirmarlo desde aquí. Si
+tras este cambio siguen sin verse en tu máquina, el problema es de entorno, no
+de CSS, y lo siguiente que hay que mirar es qué build está sirviendo el puerto.
+
+**El arreglo se hizo igual**, porque el diagnóstico de fondo —"el orden depende
+de que nadie pinte un fondo opaco"— sí es correcto y es lo que ha roto esta capa
+tres veces. Lo que cambia no es el render (ver abajo: diff de 0 píxeles) sino la
+fragilidad.
+
+## Qué se hizo
+
+**1. `pages/index.tsx` — raíz de apilamiento explícita.**
+Nuevo div raíz `relative isolate min-h-screen bg-bg`. `isolation: isolate` abre
+un stacking context propio y `bg-bg` pinta el color base como fondo de un
+elemento **real en flujo**. Dentro, una escalera de z-index **no negativos**:
+
+```
+color base            fondo del div raíz (bg-bg)
+  → background-paths  fixed, z-0,  sin JS, también en táctil
+  → halo global       fixed, z-10, solo en modo pointer
+  → contenido         relative, z-20
+  → navegación        fixed, z-50, opaca a propósito
+```
+
+Por qué es más robusto: un z-index negativo no se apila "contra el fondo de la
+página", se apila **por debajo de los fondos de bloque de todo el árbol**.
+Funciona mientras nadie pinte un fondo opaco, y el día que alguien lo pinta la
+capa desaparece sin que nada falle ni avise — el efecto se sostenía por
+*ausencia* de fondos, y por eso hubo que ir quitándolos uno a uno (`body`,
+`Section`, `Footer`). Ahora el orden está escrito: quien añada un fondo opaco lo
+hace en un escalón concreto de la escalera y ve qué tapa.
+
+`isolation: isolate` **no** crea containing block para `position: fixed` (eso
+solo lo hacen `transform`, `filter`, `perspective`, `will-change: transform` y
+`contain`), así que las tres capas `fixed` —paths, halo y nav— siguen
+posicionándose contra el viewport. Verificado en el navegador.
+
+**2. `html { background-color }` se queda, pero cambia de papel.** Ya no es "el
+fondo de la página" sino **el lienzo del documento**: lo que se ve en el
+overscroll y en cualquier área que el div raíz no cubra. Al pintarse siempre por
+debajo de todo, no participa del orden ni puede tapar nada. `body` sigue sin
+fondo.
+
+**3. `BackgroundPaths` `-z-20 → z-0` y `GlobalSpotlight` `-z-10 → z-10`.**
+Con z no negativo, `pointer-events: none` deja de ser un "por si acaso" y pasa a
+ser **estructural**: es lo único que impide que esas capas intercepten un clic
+donde no hay contenido encima. Documentado en ambos archivos. Comentarios de
+`Section.tsx` actualizados (los de `Card.tsx` siguen siendo correctos: el
+`-z-10` del halo de tarjeta vive dentro del `isolate` de la propia `Card` y ahí
+sí es el mecanismo correcto).
+
+**4. `PRESENCE` 0,16 → 0,32, y `PEAK_OPACITY` del halo global 0,05 → 0,12.**
+Los dos valores los fijó **Luis validando en pantalla**, después de la entrega
+inicial de esta sub-etapa (que los había dejado en 0,24 y 0,05). Los dos superan
+lo que traía la documentación previa, y conviene que quede escrito por qué.
+
+- **`PRESENCE = 0,32`** (`BackgroundPaths.tsx`). El encargo de 3.4c era
+  "presencia media" y a 0,16 —y luego a 0,24— la textura seguía leyéndose
+  demasiado sutil. §1 **no fija banda dura** para los paths: solo pide que la
+  atmósfera cicle en lo decorativo, así que aquí no hay spec que reabrir. La
+  línea fuerte (`strokeOpacity` 1,0) compone ahora al 32 % sobre `--color-bg`
+  → ≈ `rgb(5,68,61)`, y la más tenue al 14,4 %. Con el valle del cross-fade
+  (alfa de grupo 0,75) el rango real de la línea fuerte es **24–32 %**. Sigue
+  muy por debajo del texto (`#ECEEEE`), que es la única cota que importa.
+
+- **`PEAK_OPACITY = 0,12`** (`GlobalSpotlight.tsx`). **Esto sí reabre el
+  DESIGN-SPEC**: §3 acotaba la opacidad pico del halo global a **4–6 %**, y 0,12
+  la **duplica**. Motivo, validado en pantalla: a 0,05 —y hasta 0,10— el halo
+  global era imperceptible **frente al halo de tarjeta**, que §3 fija en 14–18 %.
+  Dos niveles de spotlight cuya diferencia es tan grande que el nivel global no
+  se ve no son dos niveles: son uno. Subirlo a 0,12 devuelve al halo global
+  presencia propia manteniendo la jerarquía (sigue por debajo del de tarjeta) y
+  la diferenciación que pide §3, que es **por escala y nitidez, nunca por
+  color**: 600 px difusos contra 300 px con borde perceptible.
+
+  El valle del cross-fade lo baja a **≈ 0,09** en los cruces de color
+  (`0,12 × 0,75`), y a 9 % **sigue siendo visible** — que es justo el problema
+  que había antes, cuando el valle caía a 3,75 %.
+
+  **Reapertura documentada del spec**, con el mismo criterio que la corrección
+  del H1 en 3.3-meta (Entrada 11): el spec no se contradice en silencio, se
+  actualiza y se anota el valor viejo con su motivo. **DESIGN-SPEC §3 quedó
+  actualizado**: halo global a 12 % pico (≈ 9 % en el valle), con el 4–6 %
+  original anotado como ampliado en 3.5a. El halo de **tarjeta** (14–18 %) **no
+  se tocó**, ni el principio "acento = acción (fijo), atmósfera = ambiente
+  (ciclo)": esto es ambiente y sigue ciclando.
+
+**Nota de deuda para 3.5b:** los docstrings de `PEAK_OPACITY` en
+`GlobalSpotlight.tsx` siguen citando "§3: 4–6 %" y calculando el pico al 5,0 %
+y el valle al 3,75 %. **Están desactualizados respecto al código.** No se
+tocaron en esta pasada por acotación del encargo (solo documentación); hay que
+recalcularlos junto con el resto de la limpieza.
+
+**5. Barra de scroll (`styles/globals.css`).** Se reemplaza la scrollbar Neon
+Sunset —track morado `#1A0B2E`, thumb en degradado morado→magenta y
+magenta→naranja en hover— por una acorde a Señal. Era el último resto de la
+paleta vieja con presencia **permanente** en pantalla y contradecía §1 (el color
+fuerte solo donde hay acción).
+
+- Track transparente.
+- Thumb en `--color-border-strong` (blanco al 14 %), el mismo gris de los bordes
+  de tarjeta: la barra se lee como parte de la retícula, no como adorno.
+- Hover en `--color-accent-glow` (teal al 25 %): un indicio de que responde, muy
+  por debajo del teal sólido que marca las acciones reales.
+- Canal de 10 px con `border: 3px solid transparent` + `background-clip:
+  padding-box` → thumb de ~4 px visibles, en píldora.
+- Firefox por `scrollbar-width: thin` + `scrollbar-color` en `html` (no admite
+  hover; se queda en el gris base). Chrome/Edge/Safari por los pseudo-elementos.
+
+Los demás usos de `#1A0B2E` (`--color-sunset-deep` y `.bg-sunset-gradient`)
+**siguen ahí a propósito**: son la paleta Neon completa, que es 3.5b.
+
+## Verificación
+
+**El cambio de apilamiento no mueve un solo píxel.** Se construyó el árbol nuevo
+con `PRESENCE = 1` y se comparó contra la captura del árbol viejo (también
+`PRESENCE = 1`, `-z-10`), 1280×800, mismo flag de reduced-motion:
+**0 píxeles distintos de 1 024 000, diferencia máxima por canal 0.** Es una
+mejora de robustez pura, sin delta visual.
+
+**Presencia (muestreo de píxel, `reduce`, fondo limpio `rgb(7,9,10)`).** Medido
+con `PRESENCE = 0,24`, que era el valor de la entrega inicial: la línea fuerte
+(`strokeOpacity` 1,0) predecía `rgb(5,53,48)` y midió **`rgb(5,52,47)`**, a 1
+punto. Las ocho líneas detectadas en el barrido vertical a 1280×2400. Contraste
+con el texto (`#ECEEEE` = `rgb(236,238,238)`) intacto.
+
+Con el valor final de Luis, **`PRESENCE = 0,32`**, la misma aritmética predice
+`rgb(5,68,61)` para la línea fuerte y `rgb(6,36,33)` para la más tenue. **No se
+volvió a medir** (el ajuste es posterior a la corrida de verificación y el
+modelo lineal ya quedó validado a 1 punto en dos valores distintos); la
+validación real es la de pantalla, que es lo que motivó el cambio.
+
+**El contenido sigue por encima.** Los píxeles del texto del hero son idénticos
+antes y después del cambio: `rgb(236,238,238)` en las dos capturas. La nav
+también, píxel a píxel.
+
+**Estado real de las capas en el navegador** (CDP, con `pointer: fine` forzado
+para que el halo se monte):
+
+| Hijo del div raíz | z-index | position | pointer-events |
+|---|---|---|---|
+| `.bg-paths` | 0 | fixed | none |
+| halo global | 10 | fixed | none |
+| contenido | 20 | relative | auto |
+
+Raíz: `isolation: isolate`, `background-color: rgb(7,9,10)`. Nav: `z-index: 50`,
+`fixed`.
+
+**Clics intactos.** Rejilla de `elementFromPoint` de 32×23 puntos sobre el
+viewport: **0 impactos** en las capas decorativas. Además, uno a uno:
+
+- CTA del hero ("Hablemos"): el hit cae en el `BUTTON`. ✅
+- Los 2 `<a href>` de la página (proyecto Atelier y el `mailto:`): alcanzables. ✅
+- Botón de idioma de la nav: alcanzable. ✅
+- Tarjeta expandible de Confianza: el hit cae dentro del `<button>`, el clic
+  conmuta `aria-expanded` de `false` a `true` y el panel pasa a
+  `grid-template-rows: 203px`. ✅
+
+**Scrollbar, medida en captura sin `--hide-scrollbars`:** thumb en
+`rgb(42,43,44)` = `#FFFFFF24` compuesto sobre `#07090A` (0,14·255 + 0,86·7 =
+41,7 → 42), track a `rgb(7,9,10)`. Sin rastro de morado. En el CSS compilado
+solo quedan los dos usos Neon que son de 3.5b.
+
+**SSR sin mismatch.** El HTML estático trae el div raíz, `.bg-paths`, el
+contenido a `z-20` y el `opacity` de `PRESENCE` (`0.24` en la corrida medida,
+hoy `0.32`), y **no** trae el halo (que sigue montándose
+solo en cliente, por diseño). Consola tras la hidratación: **0 errores de
+hidratación**; la única entrada es un 404 de `/favicon.ico`, preexistente.
+
+**Lighthouse mobile local** (`lighthouse@12`, headless, tres corridas contra
+`next start`):
+
+| Corrida | Performance | LCP | FCP | TBT | CLS |
+|---|---|---|---|---|---|
+| 1 | 99 | 2,3 s | 0,8 s | 40 ms | 0 |
+| 2 | 98 | 2,3 s | 0,8 s | 40 ms | 0 |
+| 3 | 99 | 2,2 s | 0,8 s | 60 ms | 0 |
+
+Idéntico a 3.4c (98–99 / 2,3 s), como se esperaba: son cambios de CSS y de
+apilamiento, sin JS nuevo.
+
+**Warning de `i18n.localeDetection`: sin cambios.** Sigue apareciendo
+`Invalid literal value, expected false at "i18n.localeDetection"` en cada build.
+Nada de esta etapa lo toca.
+
+## Pendientes
+
+**3.5b (siguiente sub-etapa, cierre):**
+- Limpieza completa de Neon Sunset: `--color-neon-*`, `--color-sunset-*`,
+  `--shadow-neon-*`, `--animate-glow`/`--animate-float`, los `@keyframes
+  glow`/`float` y las utilidades `.bg-neon-gradient`/`.bg-sunset-gradient`.
+- Alias legacy de `Card` (`neon`, `gradient`) y de `Section` (`gradient`,
+  `dark`), que la Entrada 19 ya daba por retirables.
+- SEO 60 en Vercel.
+- `npm audit`: 11 vulnerabilidades.
+- Copy de Services.
+- `next lint`.
+- Gate de performance final y merge a `main`.
+
+**Fuera de fase:**
+- Avatar de David.
+- Carrusel móvil como mejora post-lanzamiento.
+
+**Abierto de esta etapa:** validar contra el preview de Vercel los dos valores
+que Luis fijó en pantalla —`PRESENCE = 0.32` y `PEAK_OPACITY = 0.12`—, que es
+donde se comprueba si el halo global ya se distingue del de tarjeta sin comerse
+la lectura. Si la textura sigue sin verse en tu entorno local, revisar qué build
+sirve el puerto antes de tocar el valor.
+
+**Deuda de esta etapa (a 3.5b):** recalcular los docstrings de `PEAK_OPACITY` en
+`GlobalSpotlight.tsx`, que siguen escritos para 0,05 y citan el 4–6 % de §3.
+
+---
+
 # Entrada 19 — Fase 3, sub-etapa 3.4c: atmósfera de fondo (cierra 3.4)
 
 Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.4c.
