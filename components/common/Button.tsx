@@ -1,9 +1,7 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** `neon` es un alias legacy de `primary`: solo existe para que las secciones
-   *  aún sin migrar compilen. Se elimina en la sub-etapa 3.3. */
-  variant?: 'primary' | 'secondary' | 'outline' | 'neon';
+  variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
 }
@@ -28,7 +26,6 @@ const Button: React.FC<ButtonProps> = ({
     primary,
     secondary: quiet,
     outline: quiet,
-    neon: primary,
   };
 
   const sizeStyles = {

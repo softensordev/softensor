@@ -7,6 +7,112 @@ bitácora.
 
 ---
 
+# Entrada 21 — Fase 3, sub-etapa 3.5b-1: retiro de Neon Sunset y de los alias legacy
+
+Fecha: 2026-08-06. Fase: 3 — implementación, sub-etapa 3.5b-1. Rama:
+`fase3/limpieza-cierre` (segundo commit de la rama, sobre 3.5a).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel. Local:
+`tsc --noEmit` y `next build` verdes, y el HTML prerenderizado es **idéntico
+byte a byte** al de HEAD (ver "La prueba" abajo).
+
+Limpieza de deuda, sin cambio funcional ni visual. **No toca SEO, config, copy
+ni dependencias**: eso es 3.5b-2 y siguientes.
+
+## Qué se retiró
+
+**1. `styles/globals.css` — paleta Neon Sunset completa.** Tokens de color
+(`--color-neon-pink/purple/blue/cyan/orange/yellow`,
+`--color-sunset-deep/dark/medium/light`), sombras `--shadow-neon-*`,
+animaciones `--animate-glow`/`--animate-float` con sus `@keyframes glow` y
+`@keyframes float`, y las utilidades `.bg-neon-gradient` / `.bg-sunset-gradient`.
+El bloque de cabecera del `@theme` pasa de "bloque aditivo que NO elimina Neon"
+a "Señal es la única paleta viva". 241 → 193 líneas.
+
+**2. Alias legacy de los tres componentes comunes.** `Button`: fuera `'neon'`
+del tipo `variant?` y la entrada `neon: primary` del mapa. `Card`: fuera
+`'neon'` y `'gradient'` del tipo y del mapa. `Section`: fuera `'gradient'` y
+`'dark'` del tipo `background?` y del mapa — seguían ahí (el grep de la
+instrucción daba 0 porque medía el *uso*, no la *definición*). Las variantes
+vivas se quedan: `primary/secondary/outline`, `default/raised`,
+`default/surface`. Los comentarios que describían el "puente legacy" se
+retiraron o se reescribieron; el de `Section` además se corrigió, porque desde
+3.5a el color base ya no lo pinta `body` sino el div raíz de `pages/index.tsx`.
+
+## La distinción que había que no fallar, y se respetó
+
+`--shadow-glow-sm` / `--shadow-glow-md` **no son Neon**: son el glow teal
+(`#00C2A840`) de Señal, y `Button` usa `hover:shadow-glow-sm` en la variante
+primaria. Siguen intactos, y en el CSS emitido la regla sobrevive verbatim:
+
+```
+.hover\:shadow-glow-sm:hover{--tw-shadow:0 0 16px var(--tw-shadow-color,#00c2a840); …}
+```
+
+El `@theme` lleva ahora una nota explícita sobre el parecido de nombres.
+
+## La prueba de que todo estaba muerto
+
+No basta con que el build pase. Se construyó HEAD y la rama por separado y se
+compararon las dos salidas:
+
+- **HTML.** `.next/server/pages/es.html`, 33 414 B en ambos, **idéntico** una vez
+  normalizados `buildId` y los hashes de chunk (lo único que cambiaba). Ninguna
+  clase, ningún atributo. Era lo esperado: no se tocó ningún `className`, solo
+  tipos de TS y entradas de mapa sin consumidor.
+- **CSS.** 33 088 → **31 591 B (−1 497 B, −4,5 %)** midiendo solo el cambio de
+  código. El diff a nivel de declaración da **cero añadidos** y solo retiros,
+  todos Neon. Con esta entrada de bitácora ya escrita el bundle queda en
+  31 627 B (−1 461 B, −4,4 %): los 36 B de diferencia son `--shadow-glow-md`,
+  que Tailwind emite porque este texto lo nombra — ver el hallazgo de abajo.
+- **Greps de confirmación** sobre `components/ pages/ config/ hooks/ styles/`:
+  cero referencias a `neon`, `sunset`, `animate-glow`, `animate-float`,
+  `bg-neon-gradient`, `bg-sunset-gradient`, `variant="neon"`,
+  `variant="gradient"`, `background="dark"|"gradient"`. Lo único que queda con
+  la palabra "neon" es el comentario del `@theme` que explica el retiro.
+- **CSS emitido:** 0 ocurrencias de `neon`/`sunset`; siguen presentes
+  `--color-accent*` (15), `atmo-1`/`atmo-a`, los pseudo-elementos de scrollbar y
+  el glow teal.
+
+## Hallazgo lateral: Tailwind 4 estaba compilando esta bitácora
+
+El CSS de HEAD emitía utilidades **reales** que ningún componente usa:
+`.text-neon-cyan`, `.bg-sunset-deep`, `.bg-sunset-dark\/50`,
+`.border-neon-purple`, `.hover\:border-neon-cyan`, `.dark\:bg-sunset-deep`,
+`.animate-glow`, `.animate-float`. El origen no es código: es **este archivo**.
+Tailwind 4 detecta las fuentes automáticamente y escanea todo lo no ignorado por
+git, `.md` incluido; las entradas 15–19 citan en prosa los nombres de clase
+viejos (`bg-sunset-medium border-neon-purple ... hover:text-neon-cyan`) al
+documentar la migración, y el escáner no distingue prosa de JSX.
+
+Consecuencia práctica: **al borrar los tokens, esas utilidades dejan de ser
+válidas y desaparecen solas** — de ahí que el CSS baje 1,5 KB sin que el render
+cambie en un píxel. Pero la causa sigue viva: cualquier clase que se cite en
+prosa aquí y cuyo token exista se compilará al bundle. **Esta misma entrada lo
+demuestra**: al nombrar `--shadow-glow-md` unos párrafos más arriba —un token
+teal que ningún componente usa— el build volvió a emitirlo, +36 B. Inofensivo en
+sí, pero es la prueba de que la bitácora es una fuente de entrada del compilador
+de CSS. No se arregla en 3.5b-1 (sería un cambio de configuración, fuera de
+alcance); queda anotado como pendiente — acotar el escaneo con `@source`
+explícito en `globals.css`.
+
+## Sin cambios
+
+El warning `Invalid literal value, expected false at "i18n.localeDetection"`
+sigue igual: no se tocó `next-i18next.config.js`. Es material de 3.5b-2.
+Lighthouse no se corrió: sin cambio funcional ni de markup, y el CSS solo baja.
+
+## Pendientes
+
+- **3.5b-2 — SEO.** Candidato principal: `<Html>` sin `lang` en `_document`.
+  Más: `localeDetection`, favicon, robots/canonical/hreflang. A confirmar con el
+  detalle de Lighthouse en el preview de Vercel antes de tocar nada.
+- **3.5b-3 — copy de Services** (`public/locales/*/common.json`).
+- Después: `npm audit`, `next lint`, acotar el escaneo de Tailwind con `@source`.
+- Avatar de David. Carrusel móvil: post-lanzamiento.
+- Cierre: gate de performance + merge a `main`.
+
+---
+
 # Entrada 20 — Fase 3, sub-etapa 3.5a: apilamiento de fondo, presencia y scrollbar
 
 Fecha: 2026-08-05. Fase: 3 — implementación, sub-etapa 3.5a (primera parte del

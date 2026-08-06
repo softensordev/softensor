@@ -4,9 +4,7 @@ interface SectionProps {
   id?: string;
   children: React.ReactNode;
   className?: string;
-  /** `gradient` y `dark` son alias legacy: solo existen para que las secciones
-   *  aún sin migrar compilen. Se eliminan en la sub-etapa 3.3. */
-  background?: 'default' | 'surface' | 'gradient' | 'dark';
+  background?: 'default' | 'surface';
 }
 
 const Section: React.FC<SectionProps> = ({
@@ -15,9 +13,10 @@ const Section: React.FC<SectionProps> = ({
   className = '',
   background = 'default',
 }) => {
-  // `default` y `gradient` NO pintan fondo, y el resultado es idéntico píxel a
-  // píxel al `bg-bg` que tenían: `body` ya es `--color-bg` (styles/globals.css),
-  // así que un fondo transparente deja ver exactamente el mismo color.
+  // `default` NO pinta fondo, y el resultado es idéntico píxel a píxel al
+  // `bg-bg` que tenía: el div raíz de la página ya pinta `--color-bg`
+  // (pages/index.tsx, 3.5a), así que un fondo transparente deja ver
+  // exactamente el mismo color.
   //
   // El cambio existe por el halo global del spotlight (DESIGN-SPEC §3, 3.4b), y
   // lo hereda la atmósfera de fondo de 3.4c. Las secciones viven en el escalón
@@ -35,8 +34,6 @@ const Section: React.FC<SectionProps> = ({
   const backgroundStyles = {
     default: '',
     surface: 'bg-surface',
-    gradient: '',
-    dark: 'bg-surface',
   };
 
   return (

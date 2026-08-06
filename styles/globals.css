@@ -1,33 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  /* Neon Sunset Color Palette */
-  --color-neon-pink: #FF006E;
-  --color-neon-purple: #8338EC;
-  --color-neon-blue: #3A86FF;
-  --color-neon-cyan: #06FFF0;
-  --color-neon-orange: #FB5607;
-  --color-neon-yellow: #FFBE0B;
-
-  --color-sunset-deep: #1A0B2E;
-  --color-sunset-dark: #16213E;
-  --color-sunset-medium: #2D1B69;
-  --color-sunset-light: #4A1C7D;
-
-  /* Animations */
-  --animate-glow: glow 2s ease-in-out infinite alternate;
-  --animate-float: float 3s ease-in-out infinite;
-
-  /* Box Shadows */
-  --shadow-neon-pink: 0 0 20px rgba(255, 0, 110, 0.5);
-  --shadow-neon-purple: 0 0 20px rgba(131, 56, 236, 0.5);
-  --shadow-neon-blue: 0 0 20px rgba(58, 134, 255, 0.5);
-  --shadow-neon-cyan: 0 0 20px rgba(6, 255, 240, 0.5);
-
-  /* ===== DIRECCIÓN SEÑAL — Fase 2 =====
-     Bloque ADITIVO. NO elimina ni renombra tokens Neon Sunset (arriba):
-     88 referencias en 12 archivos aún dependen de ellos. La paleta Neon
-     se retira en un commit de limpieza al cerrar Fase 3. */
+  /* ===== DIRECCIÓN SEÑAL — Fase 2, única paleta viva desde 3.5b-1 =====
+     La paleta Neon Sunset (tokens --color-neon-* / --color-sunset-*, sombras
+     --shadow-neon-*, animaciones glow/float y las clases .bg-*-gradient) se
+     retiró aquí: al terminar la migración de secciones ya no le quedaba ningún
+     consumidor. Ojo con los nombres parecidos: --shadow-glow-sm/md, abajo, NO
+     son Neon — son el glow teal de Señal y Button los usa. */
 
   /* — Superficies — */
   --color-bg:              #07090A;
@@ -102,24 +81,6 @@
   --dur-slow:   400ms;
   --dur-slower: 700ms;
   --dur-atmo:   24s;
-}
-
-@keyframes glow {
-  from {
-    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #FF006E, 0 0 40px #FF006E;
-  }
-  to {
-    text-shadow: 0 0 20px #fff, 0 0 30px #8338EC, 0 0 40px #8338EC, 0 0 50px #8338EC;
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
 }
 
 * {
@@ -200,15 +161,6 @@ body {
 
 ::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-/* Custom gradient utilities */
-.bg-neon-gradient {
-  background-image: linear-gradient(135deg, #8338EC 0%, #FF006E 50%, #FB5607 100%);
-}
-
-.bg-sunset-gradient {
-  background-image: linear-gradient(180deg, #1A0B2E 0%, #16213E 50%, #2D1B69 100%);
 }
 
 /* ===== ATMÓSFERA — cross-fade de 3 capas apiladas =====
