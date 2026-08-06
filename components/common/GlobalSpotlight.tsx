@@ -20,15 +20,54 @@ import { usePointerTracker } from '../../hooks/usePointerTracker';
 // CERO `setState` por evento: los MotionValues del tracker alimentan dos
 // springs y los springs escriben el `transform`. Lo único que provoca un
 // re-render de React aquí es la resolución del modo, una vez al hidratar.
+//
+// 3.4c — EL COLOR YA CICLA (§1). El halo dejó de ser un div y pasó a ser un
+// contenedor con TRES capas superpuestas, cada una con su gradiente estático en
+// `--color-atmo-1/2/3` y su clase `.atmo-1/2/3` de `styles/globals.css`. El
+// color NO se interpola: se cruzan capas de color fijo por `opacity`, que es la
+// decisión de Fase 2 sobre cómo ciclar sin `@property`. El `transform` sigue
+// viviendo en el contenedor —una sola suscripción, un solo par de springs— así
+// que las tres capas persiguen al cursor como un único objeto y lo único que
+// cambia entre ellas es cuál está visible. Sin `@keyframes` nuevos: los de
+// atmósfera existen desde 3.0 y hasta ahora nadie los consumía.
 
 /** Radio del halo en px (§3: ~600). El div mide 2×RADIUS y el gradiente
  *  `closest-side` hace que el radio visible sea exactamente RADIUS. */
 const RADIUS = 600;
 
-/** Opacidad pico (§3: 4–6 %). Va en el elemento, no en el color: así 3.4c
- *  puede apilar capas de atmósfera y cruzarlas por `opacity` sin tocar el
- *  gradiente (mismo patrón que `.atmo-1/2/3` de `styles/globals.css`). */
+/**
+ * Opacidad pico (§3: 4–6 %). Vive en el CONTENEDOR, no en el color ni en las
+ * capas: es exactamente lo que 3.4b dejó preparado.
+ *
+ * CÓMO SE COMPONEN LAS DOS OPACIDADES. Las capas se mezclan primero entre sí
+ * (el `opacity` del contenedor las agrupa y las compone en un búfer aparte) y
+ * el resultado se multiplica por PEAK_OPACITY. Dentro del grupo el fondo es
+ * transparente, así que el alfa que sale de N capas apiladas es
+ * `1 − Π(1 − aᵢ)`, no `Σ aᵢ`:
+ *
+ *   - En el PICO de cada color (t = 0, 1/3, 2/3 del ciclo) una capa está a 1 y
+ *     las otras dos a 0 → alfa del grupo = 1 → halo al **5,0 %**. Es el número
+ *     que pide §3 y el mismo que tenía 3.4b, píxel a píxel, en el instante en
+ *     que el color es teal puro.
+ *   - En mitad de un cruce (dos capas a 0,5) el alfa del grupo baja a
+ *     `1 − 0,5·0,5 = 0,75` → **3,75 %**. Es un valle, no un pico: §3 acota la
+ *     opacidad *pico*, y el pico sigue siendo 5 %. El valle dura un instante
+ *     de un ciclo de 24 s y hace el halo ~25 % más tenue justo cuando el color
+ *     está a medio camino entre dos atmósferas.
+ *
+ * El valle es estructural al cross-fade por alfa (source-over no conserva la
+ * suma de opacidades) y NO se corrige subiendo PEAK_OPACITY: eso sacaría el
+ * pico del rango de §3. Se documenta y se acepta.
+ */
 const PEAK_OPACITY = 0.05;
+
+/** Las tres capas de atmósfera, en orden de apilamiento. Cada una lleva su
+ *  color estático y la clase de cross-fade que le corresponde. */
+const ATMO_LAYERS = [
+  { className: 'atmo-1', color: 'var(--color-atmo-1)' },
+  { className: 'atmo-2', color: 'var(--color-atmo-2)' },
+  { className: 'atmo-3', color: 'var(--color-atmo-3)' },
+] as const;
 
 /**
  * Spring BLANDO (§3): el halo persigue al cursor con retraso perceptible.
@@ -81,16 +120,25 @@ const GlobalSpotlight: React.FC = () => {
         // transform ES el centro del gradiente, sin aritmética por evento.
         marginLeft: -RADIUS,
         marginTop: -RADIUS,
-        // ESTÁTICO. Se escribe una vez, en el montaje, y no se vuelve a tocar.
-        // Sin borde (§3): el degradado muere en `transparent`.
-        // 3.4c conectará este color al ciclo de atmósfera (cross-fade
-        // teal→cian→azul de `--color-atmo-1/2/3`, §1). Hasta entonces queda
-        // fijo en `--color-atmo-1`, que es el primer paso de ese ciclo.
-        backgroundImage:
-          'radial-gradient(circle closest-side, var(--color-atmo-1), transparent)',
         opacity: PEAK_OPACITY,
       }}
-    />
+    >
+      {/* Las tres atmósferas, superpuestas y a tamaño completo. Cada gradiente
+          es ESTÁTICO: se escribe una vez, en el montaje, y no se vuelve a tocar
+          —ni por evento de puntero ni por el ciclo de color, que solo mueve
+          `opacity`. Sin borde (§3): el degradado muere en `transparent`.
+          Comparten el transform del padre, así que el halo se mueve como uno
+          solo y solo su color respira. */}
+      {ATMO_LAYERS.map(({ className, color }) => (
+        <div
+          key={className}
+          className={`absolute inset-0 ${className}`}
+          style={{
+            backgroundImage: `radial-gradient(circle closest-side, ${color}, transparent)`,
+          }}
+        />
+      ))}
+    </motion.div>
   );
 };
 
