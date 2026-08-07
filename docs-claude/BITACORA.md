@@ -7,6 +7,198 @@ bitácora.
 
 ---
 
+# Entrada 22 — Fase 3, sub-etapa 3.5b-2: identidad de marca (lang, favicon, wordmark)
+
+Fecha: 2026-08-06. Fase: 3 — implementación, sub-etapa 3.5b-2. Rama:
+`fase3/limpieza-cierre` (tercer commit de la rama, sobre 3.5b-1).
+Estado de compuerta: **EN VALIDACIÓN** hasta el preview de Vercel. Local:
+`tsc --noEmit` y `next build` verdes; `lang`, links de icono, wordmark y
+reduced-motion verificados sobre el HTML y el CSS emitidos.
+
+Tres cosas que van juntas porque son la misma: el sitio ya tiene marca visual
+(icono) y ahora el wordmark la acompaña. Más el `lang`, que es corrección de
+accesibilidad pura.
+
+## 1. `<html lang>` por locale — `pages/_document.tsx`
+
+`<Html>` se emitía sin `lang`. Un documento sin idioma declarado obliga al
+lector de pantalla a adivinar la voz: en un sitio ES/EN con el mismo markup es
+la diferencia entre que lea español o lo pronuncie con fonética inglesa.
+
+`<Html>` no tiene router —no hay provider en el documento—, así que hacía falta
+convertir el `Document` funcional en clase con `getInitialProps` y leer
+`ctx.locale`, que es lo que expone el Pages Router cuando hay i18n configurado.
+Fallback a `'es'` (el `defaultLocale`). Se intentó primero `ctx.__NEXT_DATA__`,
+pero **no está en el tipo de `DocumentContext`** en Next 16 y `tsc` lo rechaza;
+`ctx.locale` sí está tipado y lleva el mismo valor.
+
+Esto **no** opta la app fuera de la optimización estática (la advertencia
+conocida es sobre `_app`, no `_document`): el `Document` corre solo en servidor
+y, para páginas SSG, en tiempo de build. El `lang` queda horneado en cada HTML.
+
+Verificado sobre el prerender: `es.html` → `<html lang="es">`, `en.html` →
+`<html lang="en">`.
+
+## 2. Set de favicon — cierra el 404
+
+Los archivos los generó Claude Design y los colocó Luis: `favicon.ico` (15 KB,
+multi-tamaño), `favicon.svg` (296 B) y `favicon-180.png` en `public/`; los
+masters 16/32/48/512 y los dos SVG mono en `public/brand/`. El icono es el
+símbolo de la marca: la polilínea teal (`#00C2A8`) tipo "S" de circuito sobre
+el cuadrado `#07090A` con radio 24.
+
+Antes había un solo `<link rel="icon" href="/favicon.ico">` **sin archivo
+detrás** → 404 en cada carga. Ahora, en este orden:
+
+- `.ico` con `sizes="any"` — los navegadores modernos lo descartan a favor del
+  SVG precisamente por ese atributo; los antiguos, que ignoran `type`, se
+  quedan con él. Ese es el truco del orden, no es arbitrario.
+- SVG `type="image/svg+xml"` — el icono real: vectorial, nítido a cualquier
+  densidad, 296 B.
+- PNG de 180 px como `apple-touch-icon` — iOS no lee SVG para la pantalla de
+  inicio.
+
+Los PNG de `public/brand/` **no llevan `<link>`**: el SVG ya cubre esos tamaños,
+y añadir tres peticiones más para navegadores que no las necesitan sería peor.
+Se añadió además `<meta name="theme-color" content="#07090A">` (una línea) para
+que el cromo del navegador móvil no corte la página con una franja clara.
+
+**`site.webmanifest`: NO se creó, decisión explícita.** Es sobre-ingeniería
+aquí: la landing no es instalable (sin service worker, sin `display: standalone`
+que tenga sentido), y además **no existe el PNG de 192 px** que la
+especificación de instalabilidad espera — un manifest con solo el de 512 es un
+manifest incompleto, que añade una petición y da pie a hallazgos nuevos en
+auditorías sin resolver nada. Los tres `<link>` cubren el 404 y todos los casos
+reales de esta landing. Si algún día hay PWA, se hace entonces y con el 192.
+
+## 3. Wordmark `softensor_` con cursor de terminal — reapertura de 3.3b
+
+**Esto reabre la decisión 7 de la Entrada 12 (3.3b), donde Luis pidió retirar
+el guion bajo por "demasiado de programador".** El motivo de la reapertura, de
+Luis: con el favicon nuevo el guion ya no es un adorno suelto —lee como parte
+de un sistema de marca técnico y coherente—, y animado se lee inequívocamente
+como *cursor de terminal*, no como ruido tipográfico. Es la misma pieza que se
+quitó, en un contexto distinto que le da sentido.
+
+**El wordmark cambió más que el guion.** Pasó de "Softensor" en Space Grotesk
+700 a **"softensor" en minúscula y mono**, que es lo que pide el diseño nuevo.
+No es solo reponer el `_`: cambia caja y familia tipográfica. Queda anotado
+porque contradice también la parte "sans 700, limpio" de 3.3b.
+
+Detalles que no son cosméticos:
+
+- **`font-medium`, no bold.** `_app.tsx` carga JetBrains Mono **en un solo peso
+  (500)**, sin preload, por presupuesto tipográfico (DESIGN-SPEC §8). Pedir 700
+  daría bold sintético —el navegador engorda los trazos él mismo, y en mono se
+  nota—. Se usa el peso que existe. No se tocó `_app.tsx`.
+- **El `_` es un `<span>` aparte**, para poder animarlo solo a él, con
+  `aria-hidden="true"`: es ornamento, y el lector debe decir "softensor", no
+  "softensor guion bajo". El texto "softensor" es **texto real** en el HTML, no
+  imagen (verificado en el prerender).
+- **El del nav sigue siendo `<button>`** (la corrección de 3.2: alcanzable por
+  teclado, sin robarle el `h1` al hero). El `<span>` va dentro.
+- Color: el `_` es lo único con `text-accent` del wordmark; el texto va en
+  `--color-text`. Un solo toque de color.
+
+### El parpadeo
+
+En `styles/globals.css`, junto a las animaciones de atmósfera:
+
+```
+@keyframes cursor-blink { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }
+.wordmark-cursor { animation: cursor-blink var(--dur-cursor) step-end infinite }
+```
+
+`step-end` es lo que hace que se lea como cursor: la opacidad **salta** entre 1
+y 0 sin interpolar. Con un `ease` sería un latido, no un caret. `--dur-cursor:
+1.06s` es token nuevo junto a las otras duraciones — 530 ms encendido + 530 ms
+apagado, el ritmo del caret clásico de consola. Sin JavaScript: el estado del
+cursor no depende de nada del runtime.
+
+### Reduced-motion — obligatorio, no opcional
+
+Un elemento que parpadea de forma indefinida es exactamente lo que
+`prefers-reduced-motion: reduce` existe para desactivar (molestia vestibular,
+fotosensibilidad). En el bloque que ya existía:
+
+```
+.wordmark-cursor { animation: none; opacity: 1 }
+```
+
+**Fijo y VISIBLE, no oculto**: el guion es parte del signo de marca; se
+congela encendido. Verificado en el CSS emitido que la regla de la media query
+aparece **después** de la base (offset 28509 vs 28160): misma especificidad,
+gana la última, así que efectivamente anula la animación.
+
+### Footer: también parpadea (decisión evaluada, no inercia)
+
+Se consideró dejarlo fijo en el pie. Se descartó: es **un solo signo de marca**,
+y tenerlo vivo en la barra y congelado en el pie se lee como un fallo de
+implementación, no como sobriedad. Además el pie solo entra en pantalla al final
+del scroll, cuando no compite con ninguna lectura en curso — el caso molesto
+sería el contrario (un parpadeo junto a un párrafo que se está leyendo), y no
+ocurre. Mismo markup y misma clase en los dos sitios.
+
+## Verificación
+
+- `npx tsc --noEmit`: limpio. `npm run build`: verde, 8 páginas estáticas.
+- `lang`: `<html lang="es">` en `es.html`, `<html lang="en">` en `en.html`.
+- Iconos: los tres `<link>` y el `theme-color` presentes en el `<head>` de
+  ambos locales, en el orden previsto. Los tres archivos referenciados existen
+  en `public/` (comprobado con `ls`) → el 404 de `/favicon.ico` está cerrado.
+- Wordmark: 2 ocurrencias de `softensor` + `<span aria-hidden="true">_</span>`
+  (nav y pie) en el HTML emitido. Las 5 apariciones de "Softensor" con mayúscula
+  que quedan son **prosa**, no wordmark: el `<title>`, el `aria-label` del correo,
+  el aviso de copyright y sus copias en el payload de i18n. Correcto: el nombre
+  se escribe normal cuando es una frase.
+- CSS emitido: `@keyframes cursor-blink{0%,to{opacity:1}50%{opacity:0}}` y las
+  dos reglas de `.wordmark-cursor` en el orden correcto.
+
+## Rendimiento
+
+No se corrió Lighthouse: **no está instalado localmente** y no se instalan
+dependencias nuevas. La medición sigue siendo la última conocida (98-99, LCP
+~2.2 s) y no hay motivo mecánico para que se mueva: el parpadeo es CSS puro
+sobre `opacity` en un elemento de ~10 px (compuesto en GPU, sin layout ni
+paint), no entra JavaScript nuevo, y la única petición de red que cambia es el
+favicon — que **pasa de 404 a 200**. El bundle de CSS sube ~190 B por los
+keyframes y el token de duración.
+
+Nota tipográfica: el wordmark del nav ahora usa mono *above the fold*, pero eso
+**no cambia el presupuesto de fuentes** — el selector de idioma de la misma
+barra ya usaba mono desde 3.2, así que JetBrains Mono ya se cargaba para el
+primer viewport. El `preload: false` se mantiene tal cual.
+
+El warning `Invalid literal value, expected false at "i18n.localeDetection"`
+sigue **idéntico**: no se tocó `next-i18next.config.js` (decisión de Luis:
+mantener la detección automática por ahora).
+
+## Para memoria: el "SEO 60" está diagnosticado y no es código
+
+La categoría SEO en 60 del preview **no era el `lang`**. Es el header
+`x-robots-tag: noindex` que **Vercel pone automáticamente en los deployments de
+preview** para que no se indexen. Confirmado. Se resuelve solo en producción y
+**no requiere ninguna acción de código**. El `lang` se añadió por accesibilidad
+y porque es correcto, no para mover ese número. Si el 60 persistiera en
+producción, entonces sí sería un hallazgo real y habría que mirarlo de nuevo.
+
+## Hallazgo lateral (no corregido, fuera de alcance)
+
+`components/sections/Team.tsx:66` combina mono con peso 700 — mismo caso de
+bold sintético que se evitó en el wordmark, porque el peso 700 de esa familia no
+se carga. Es preexistente y no toca a 3.5b-2; anotado para una pasada futura.
+
+## Pendientes
+
+- **3.5b-3 — copy de Services** (`public/locales/*/common.json`).
+- Después: `npm audit`, `next lint`, acotar el escaneo de Tailwind sobre los
+  `.md` con `@source` explícito (ver el hallazgo de la Entrada 21).
+- `localeDetection`: warning aceptado a propósito; a reconsiderar más adelante.
+- Avatar de David. Carrusel móvil: post-lanzamiento.
+- Cierre: gate de performance + merge a `main`.
+
+---
+
 # Entrada 21 — Fase 3, sub-etapa 3.5b-1: retiro de Neon Sunset y de los alias legacy
 
 Fecha: 2026-08-06. Fase: 3 — implementación, sub-etapa 3.5b-1. Rama:

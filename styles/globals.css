@@ -81,6 +81,8 @@
   --dur-slow:   400ms;
   --dur-slower: 700ms;
   --dur-atmo:   24s;
+  --dur-cursor: 1.06s;   /* 530 ms encendido + 530 ms apagado: el ritmo del
+                            caret clásico de terminal. */
 }
 
 * {
@@ -174,6 +176,15 @@ body {
 .atmo-2 { animation: atmo-b var(--dur-atmo) linear infinite }
 .atmo-3 { animation: atmo-c var(--dur-atmo) linear infinite }
 
+/* ===== WORDMARK — cursor de terminal (3.5b-2) =====
+   El guion bajo del wordmark parpadea como el caret de una consola. `step-end`
+   es lo que lo hace leer como cursor y no como un latido: la opacidad salta
+   entre 1 y 0 sin interpolar, encendido/apagado duro. Solo se anima `opacity`
+   sobre un elemento de ~10 px → compuesto en GPU, costo nulo.
+   Sin JavaScript: el estado del cursor no depende de nada del runtime. */
+@keyframes cursor-blink { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }
+.wordmark-cursor { animation: cursor-blink var(--dur-cursor) step-end infinite }
+
 /* ===== FOCO — siempre :focus-visible, nunca :focus ===== */
 :where(a, button, [role="button"], [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
@@ -186,6 +197,10 @@ body {
   .atmo-2, .atmo-3 { animation: none; opacity: 0 }
   .bg-paths { animation: none; transform: none }
   .led-dot  { animation: none; opacity: 1 }
+  /* El cursor del wordmark queda FIJO Y VISIBLE, no oculto: es parte del signo
+     de marca. Un elemento que parpadea es justo lo que esta media query existe
+     para desactivar (molestia vestibular, fotosensibilidad). */
+  .wordmark-cursor { animation: none; opacity: 1 }
   [data-reveal], [data-expand] { transition-duration: 0ms !important; animation: none !important }
   /* Spotlight (global + tarjeta) y efectos de avatares: NO montados.
      Guard en JS vía matchMedia, no CSS. */

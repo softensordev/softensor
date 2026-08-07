@@ -15,12 +15,20 @@ const Footer: React.FC = () => {
     <footer className="border-t border-border py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
         <div className="text-center space-y-4">
-          {/* Wordmark: mismo tratamiento que el del nav (sans 700, limpio).
+          {/* Wordmark: mismo tratamiento exacto que el del nav (mono 500 +
+              cursor animado, 3.5b-2). Se mantiene la animación aquí a
+              propósito: es un solo signo de marca, y dejar el cursor fijo en el
+              pie y vivo en la barra se leería como un fallo, no como sobriedad.
+              El pie además solo se ve al final del scroll, así que el parpadeo
+              no compite con ninguna lectura en curso.
               Aquí no es interactivo, así que va como texto plano — un <h3>
               suelto en el footer rompería la jerarquía de encabezados de la
               página. */}
-          <p className="text-2xl md:text-3xl font-bold tracking-tight text-text">
-            Softensor
+          <p className="font-mono font-medium text-2xl md:text-3xl tracking-tight text-text">
+            softensor
+            <span aria-hidden="true" className="wordmark-cursor text-accent">
+              _
+            </span>
           </p>
 
           <p className="text-base md:text-lg text-text-muted">

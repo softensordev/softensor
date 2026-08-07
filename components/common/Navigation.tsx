@@ -65,13 +65,67 @@ const Navigation: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/90 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20">
         <div className="flex justify-between items-center h-20">
-          {/* Wordmark: ancla a la izquierda. Sin logo; tipográfico limpio en
-              sans 700. */}
+          {/* Wordmark: ancla a la izquierda. Sigue siendo un <button> (3.2) —
+              alcanzable por teclado y sin robarle el <h1> al hero.
+              Tipográfico en mono minúscula + cursor de terminal (3.5b-2): el
+              texto es texto real, y el `_` es un <span> aparte para poder
+              animarlo solo a él, `aria-hidden` porque es ornamento (el lector
+              debe leer "softensor", no "softensor guion bajo").
+              `font-medium` y no `font-bold`: JetBrains Mono se carga en un solo
+              peso (500) desde `_app`; pedir 700 daría bold sintético.
+
+              PRUEBA VISUAL (3.5b-2): el símbolo de marca SUSTITUYE a la "s"
+              inicial — se lee [S]oftensor_. Notas de la prueba:
+
+              · Se usa la "S" SOLA, sin el cuadro redondeado del favicon: ese
+                cuadro es `#07090A`, el mismo color que `bg-bg` de esta barra,
+                así que no sería un badge sino un rectángulo fantasma, visible
+                solo por el 10 % de transparencia del nav. Aparte, dentro de una
+                palabra un cuadro de fondo la partiría en dos. El dibujo es el
+                del favicon (mismo `polyline`, mismo grosor relativo); solo
+                cambia el `viewBox`, recortado al bounding box del trazo
+                (26,22 → 76,78) para que no arrastre el aire interior del icono.
+
+              · ACCESIBILIDAD — lo que obliga esta variante. El texto visible ya
+                no dice "softensor" sino "oftensor", así que un lector de
+                pantalla leería eso. Por tanto TODO el lockup visual va
+                `aria-hidden` y el nombre completo vive en un `sr-only`
+                hermano: sigue siendo texto real en el DOM (indexable, no
+                imagen), y lo que se anuncia es "softensor".
+
+              · Métrica: `h-[0.65em]` ata la altura del símbolo al font-size, así
+                que escala sola entre `text-2xl` y `text-3xl` sin un segundo
+                valor. 0,65 em queda entre la altura de x (~0,55 em) y la de las
+                ascendentes de la "f" y la "t" (~0,75 em): a la altura de x el
+                trazo del símbolo cerraría sus propios contra-espacios y se
+                vería como un borrón.
+
+              · Alineación: sin flex a propósito. Un SVG inline es un elemento
+                reemplazado, y su borde inferior se apoya solo en la línea base
+                del texto — igual que una letra sin descendente, que es
+                exactamente lo que tiene que hacer aquí. `mr-0.5` repone el
+                espacio lateral que el `viewBox` recortado no tiene y que sí
+                tienen las letras del mono. */}
           <button
             onClick={() => scrollToSection('hero')}
-            className="flex-shrink-0 text-2xl md:text-3xl font-bold tracking-tight text-text"
+            className="flex-shrink-0 font-mono font-medium text-2xl md:text-3xl tracking-tight text-text"
           >
-            Softensor
+            <span className="sr-only">softensor</span>
+            <span aria-hidden="true">
+              <svg
+                viewBox="26 22 50 56"
+                className="inline-block align-baseline h-[0.65em] w-auto mr-0.5 text-accent"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={12}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="70,28 32,28 32,50 70,50 70,72 32,72" />
+              </svg>
+              oftensor
+              <span className="wordmark-cursor text-accent">_</span>
+            </span>
           </button>
 
           {/* Desktop: navegación (peso medio) → idioma (peso bajo) → CTA (peso alto) */}
