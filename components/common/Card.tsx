@@ -3,9 +3,7 @@ import CardSpotlight from './CardSpotlight';
 
 interface CardProps {
   children: React.ReactNode;
-  /** `neon` y `gradient` son alias legacy: solo existen para que las secciones
-   *  aún sin migrar compilen. Se eliminan en la sub-etapa 3.3. */
-  variant?: 'default' | 'raised' | 'neon' | 'gradient';
+  variant?: 'default' | 'raised';
   className?: string;
   hover?: boolean;
   /** Halo de tarjeta del spotlight (DESIGN-SPEC §3). Opt-in, no por defecto:
@@ -25,8 +23,6 @@ const Card: React.FC<CardProps> = ({
   const variantStyles = {
     default: 'bg-surface border-border',
     raised: 'bg-surface-raised border-border',
-    neon: 'bg-surface border-border',
-    gradient: 'bg-surface-raised border-border',
   };
 
   const hoverStyles = hover ? 'hover:border-border-strong' : '';

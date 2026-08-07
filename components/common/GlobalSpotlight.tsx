@@ -36,8 +36,8 @@ import { usePointerTracker } from '../../hooks/usePointerTracker';
 const RADIUS = 600;
 
 /**
- * Opacidad pico (§3: 4–6 %). Vive en el CONTENEDOR, no en el color ni en las
- * capas: es exactamente lo que 3.4b dejó preparado.
+ * Opacidad pico del halo global (§3: **12 %**). Vive en el CONTENEDOR, no en el
+ * color ni en las capas: es exactamente lo que 3.4b dejó preparado.
  *
  * CÓMO SE COMPONEN LAS DOS OPACIDADES. Las capas se mezclan primero entre sí
  * (el `opacity` del contenedor las agrupa y las compone en un búfer aparte) y
@@ -46,20 +46,32 @@ const RADIUS = 600;
  * `1 − Π(1 − aᵢ)`, no `Σ aᵢ`:
  *
  *   - En el PICO de cada color (t = 0, 1/3, 2/3 del ciclo) una capa está a 1 y
- *     las otras dos a 0 → alfa del grupo = 1 → halo al **5,0 %**. Es el número
- *     que pide §3 y el mismo que tenía 3.4b, píxel a píxel, en el instante en
- *     que el color es teal puro.
+ *     las otras dos a 0 → alfa del grupo = 1 → halo al **12,0 %**. Es el número
+ *     que pide §3, en el instante en que el color es una atmósfera pura.
  *   - En mitad de un cruce (dos capas a 0,5) el alfa del grupo baja a
- *     `1 − 0,5·0,5 = 0,75` → **3,75 %**. Es un valle, no un pico: §3 acota la
- *     opacidad *pico*, y el pico sigue siendo 5 %. El valle dura un instante
+ *     `1 − 0,5·0,5 = 0,75` → **9,0 %**. Es un valle, no un pico: §3 acota la
+ *     opacidad *pico*, y el pico sigue siendo 12 %. El valle dura un instante
  *     de un ciclo de 24 s y hace el halo ~25 % más tenue justo cuando el color
  *     está a medio camino entre dos atmósferas.
  *
  * El valle es estructural al cross-fade por alfa (source-over no conserva la
- * suma de opacidades) y NO se corrige subiendo PEAK_OPACITY: eso sacaría el
- * pico del rango de §3. Se documenta y se acepta.
+ * suma de opacidades). A 9 % el halo SIGUE SIENDO VISIBLE, así que no hay nada
+ * que corregir: es una respiración, no una desaparición.
+ *
+ * 3.5a — POR QUÉ 0,12 Y NO EL 4–6 % ORIGINAL. El rango aprobado en Fase 2 era
+ * 4–6 %, y ahí el halo global resultaba imperceptible **frente al halo de
+ * tarjeta**, que §3 fija en 14–18 %: dos niveles de spotlight cuya diferencia
+ * es tan grande que el nivel global no se ve dejan de ser dos niveles. Luis lo
+ * validó en pantalla (a 5 %, y hasta 10 %, el global no se leía) y amplió el
+ * rango a 12 %. La jerarquía se mantiene —el global sigue por debajo del de
+ * tarjeta— y la diferenciación entre ambos sigue siendo por ESCALA Y NITIDEZ,
+ * nunca por color, que es la decisión de Fase 2 que encabeza §3.
+ *
+ * Es una **ampliación documentada del spec**, no una deriva: DESIGN-SPEC §3
+ * quedó actualizado con el 12 % y con el 4–6 % anotado como reemplazado, y el
+ * registro completo está en BITACORA.md, Entrada 20.
  */
-const PEAK_OPACITY = 0.05;
+const PEAK_OPACITY = 0.12;
 
 /** Las tres capas de atmósfera, en orden de apilamiento. Cada una lleva su
  *  color estático y la clase de cross-fade que le corresponde. */
@@ -99,13 +111,26 @@ const GlobalSpotlight: React.FC = () => {
   return (
     <motion.div
       aria-hidden="true"
-      // `-z-10`: por debajo del contenido (§3). Un z-index NEGATIVO no es una
-      // preferencia estética — pinta en la capa que va justo encima del fondo
-      // del canvas y por debajo de los fondos de bloque y del texto, así que
-      // el halo no puede taparlos ni interceptar un clic ni aunque
-      // `pointer-events` fallara. `Section` deja su fondo transparente
-      // (mismo color que el body) precisamente para que esta capa se vea.
-      className="fixed top-0 left-0 -z-10 pointer-events-none"
+      // `z-10`: escalón intermedio del stacking context de la página (ver
+      // `pages/index.tsx`). Encima de los paths de atmósfera (`z-0`) y del
+      // color base, debajo del contenido (`z-20`), que es lo que exige §3.
+      //
+      // Antes esto era `-z-10` y el "por debajo del contenido" salía de que un
+      // z negativo se pinta por detrás de los fondos de bloque. Eso funciona,
+      // pero es implícito y frágil: cualquier elemento en flujo con fondo
+      // opaco tapa la capa sin avisar (pasó dos veces — el `background` de
+      // `body` y el `bg-bg` de `Section`). Con el orden explícito, que el halo
+      // quede debajo del contenido es una regla escrita, no un efecto
+      // secundario del algoritmo de pintado.
+      //
+      // `Section` sigue dejando su fondo transparente: no porque haga falta
+      // para el z-index, sino porque un fondo opaco encima de esta capa la
+      // taparía igual — ahora por la razón correcta y visible.
+      //
+      // `pointer-events: none` es lo ÚNICO que impide que este div de
+      // 1200×1200 px intercepte clics: con z no-negativo ya no hay una segunda
+      // red de seguridad estructural.
+      className="fixed top-0 left-0 z-10 pointer-events-none"
       style={{
         // Movimiento: SOLO transform. framer-motion compila `x`/`y` a
         // `translateX()/translateY()`; `will-change` promueve la capa para que

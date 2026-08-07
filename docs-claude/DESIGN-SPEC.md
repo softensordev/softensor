@@ -67,7 +67,8 @@ Diferenciados por **escala y nitidez, nunca por color** (decisión de Fase 2).
 
 **Global**
 - Radio ~600px.
-- Opacidad pico **4–6%**.
+- Opacidad pico **12%** (el valle del cross-fade de atmósfera la baja a **~9%**
+  en las transiciones de color; ver nota abajo).
 - Sin borde.
 - Lag perceptible: spring **blando** (el halo "persigue" al cursor).
 - Color **hereda la atmósfera** (`--color-atmo-*` según el ciclo).
@@ -86,6 +87,26 @@ Diferenciados por **escala y nitidez, nunca por color** (decisión de Fase 2).
 estático** movido por `transform: translate3d(x, y, 0)`. **Nunca** se
 recalcula `background-image` ni `background-position` por evento: eso repinta
 el viewport completo en cada `pointermove`. Solo se mueve el compositor.
+
+**Nota — el pico del halo global se amplió en 3.5a.** El valor aprobado en
+Fase 2 era **4–6%**. Luis lo subió a **12%** (`PEAK_OPACITY = 0.12` en
+`components/common/GlobalSpotlight.tsx`) tras validar en pantalla que a 5% —y
+hasta 10%— el halo global resultaba imperceptible **frente al halo de tarjeta**,
+que sigue en 14–18%: dos niveles cuya diferencia es tan grande que el nivel
+global no se ve dejan de ser dos niveles. A 12% el global conserva presencia
+propia sin invertir la jerarquía (sigue por debajo del de tarjeta), y la
+diferenciación entre ambos sigue siendo **por escala y nitidez, nunca por
+color**, que es la decisión de Fase 2 que encabeza esta sección.
+
+El cross-fade de tres capas de atmósfera compone alfa como `1 − Π(1 − aᵢ)`, no
+como suma: en mitad de un cruce de colores el alfa del grupo cae a 0,75 y el
+halo compuesto baja a **~9%**. A 9% sigue siendo visible, que era justamente el
+problema con el valor anterior (su valle caía a 3,75%).
+
+El rango de tarjeta (**14–18%**) **no cambió**. Tampoco cambia el principio de
+§1: esto es *atmósfera* —ambiente, decorativo, ciclando— y el acento funcional
+teal sigue fijo y reservado a la acción. Registro completo en BITACORA.md,
+Entrada 20.
 
 ---
 
